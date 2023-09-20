@@ -6,6 +6,7 @@ const router = express.Router();
 const multer = require('multer');
 const sharp = require('sharp');
 const upload = multer({dest: 'uploads/'}); // это временное хранилище для загружаемых изображений
+const {JWT_SECRET, JWT_SECRET2} = require('../config');
 router.put('/update-user', (req, res) => {
     try {
         // 1. Извлеките токен из заголовка авторизации
@@ -20,7 +21,7 @@ router.put('/update-user', (req, res) => {
         }
 
         // 2. Верифицируйте токен
-        jwt.verify(token, 'f859b067-c135-42ac-adb6-38489bf0c9d1', (err, decoded) => {
+        jwt.verify(token, JWT_SECRET, (err, decoded) => {
             if (err) {
                 return res.status(403).json({message: 'Invalid token'});
             }
@@ -57,7 +58,7 @@ router.post('/upload-profile-image', upload.single('profileImage'), async (req, 
             return res.status(401).json({message: 'Token is missing'});
         }
 
-        jwt.verify(token, 'f859b067-c135-42ac-adb6-38489bf0c9d1', async (err, decoded) => {
+        jwt.verify(token, JWT_SECRET, async (err, decoded) => {
             if (err) {
                 return res.status(403).json({message: 'Invalid token'});
             }

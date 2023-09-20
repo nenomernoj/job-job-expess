@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const connection = require('../db');
 const router = express.Router();
+const {JWT_SECRET, JWT_SECRET2} = require('../config');
 router.post('/getOtp', (req, res) => {
     const {phone_number, sms_code} = req.body;
     if (!phone_number || phone_number.length !== 11 || !containsOnlyNumbers(phone_number)) {
@@ -128,8 +129,8 @@ router.post('/login', (req, res) => {
             }
             delete user.Password;
             // Если аутентификация успешна, генерируем токены
-            const accessToken = jwt.sign({user}, 'f859b067-c135-42ac-adb6-38489bf0c9d1', {expiresIn: '1h'});
-            const refreshToken = jwt.sign({userId: user.Id}, 'f859b067-c135-42ac-adb6-38489bf0c9d2', {expiresIn: '7d'});
+            const accessToken = jwt.sign({user}, JWT_SECRET, {expiresIn: '1h'});
+            const refreshToken = jwt.sign({userId: user.Id}, JWT_SECRET2, {expiresIn: '7d'});
 
             // Сохраняем refresh token в базе данных
             const insertQuery = 'INSERT INTO refresh_tokens (userId, token) VALUES (?, ?)';
@@ -176,7 +177,7 @@ router.post('/refresh-token', (req, res) => {
 
                     const user = userResults[0];
                     delete user.Password;
-                    const newAccessToken = jwt.sign({user}, 'f859b067-c135-42ac-adb6-38489bf0c9d1', {expiresIn: '1h'});
+                    const newAccessToken = jwt.sign({user}, JWT_SECRET, {expiresIn: '1h'});
                     const newRefreshToken = jwt.sign({userId: user.Id}, 'f859b067-c135-42ac-adb6-38489bf0c9d2', {expiresIn: '7d'});
 
                     // Удаляем старый refresh token из базы данных

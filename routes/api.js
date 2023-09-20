@@ -18,7 +18,7 @@ function verifyToken(req, res, next) {
         return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    jwt.verify(token, 'f859b067-c135-42ac-adb6-38489bf0c9d1', (error, decoded) => {
+    jwt.verify(token, JWT_SECRET, (error, decoded) => {
         if (error) {
             return res.status(403).json({ message: 'Forbidden' });
         }
