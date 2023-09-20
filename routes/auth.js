@@ -86,10 +86,10 @@ router.post('/getOtp', (req, res) => {
 // Регистрация пользователя
 router.post('/update-profile', async (req, res) => {
     try {
-        const {photo, fullName, birthDate, gender, cityId, phoneNumber, email, password} = req.body;
+        const {fullName, birthDate, gender, cityId, email} = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const query = 'INSERT INTO users (Photo, FullName, BirthDate, Gender, cityId, PhoneNumber, Email, Password) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+        const query = 'INSERT INTO users (Photo, FullName, BirthDate, Gender, cityId, Email) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
         connection.query(query, [photo, fullName, birthDate, gender, cityId, phoneNumber, email, hashedPassword], (error, results) => {
             if (error) {
                 console.error(error);
