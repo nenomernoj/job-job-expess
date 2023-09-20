@@ -488,29 +488,47 @@ router.post('/category', async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         const userId = decoded.user.Id;
 
-        const {ResumeId, CategoryId} = req.body;
+        const { ResumeId, CategoryId } = req.body;
 
-        const checkOwnerQuery = 'SELECT UserId FROM resumes WHERE Id = ?';
-        connection.query(checkOwnerQuery, [ResumeId], (err, results) => {
-            if (err || results.length === 0 || results[0].UserId !== userId) {
-                return res.status(403).json({message: 'Unauthorized'});
+        // Проверяем принадлежность резюме текущему пользователю
+        const resumeOwnerCheckQuery = 'SELECT UserId FROM resumes WHERE Id = ?';
+        connection.query(resumeOwnerCheckQuery, [ResumeId], (error, results) => {
+            if (error) {
+                return res.status(500).json({ message: 'Server error' });
             }
 
-            const addQuery = 'INSERT INTO resume_categories (ResumeId, CategoryId) VALUES (?, ?)';
-            connection.query(addQuery, [ResumeId, CategoryId], (error) => {
+            if (results.length === 0 || results[0].UserId !== userId) {
+                return res.status(403).json({ message: 'You are not authorized to modify this resume.' });
+            }
+
+            // Проверка на наличие уже существующей категории для этого резюме
+            const categoryExistsQuery = 'SELECT * FROM resume_categories WHERE ResumeId = ? AND CategoryId = ?';
+            connection.query(categoryExistsQuery, [ResumeId, CategoryId], (error, results) => {
                 if (error) {
-                    console.log(error);
-                    return res.status(500).json({message: 'Server error'});
+                    return res.status(500).json({ message: 'Server error' });
                 }
-                res.status(200).json({message: 'Category added to resume successfully'});
+
+                if (results.length > 0) {
+                    return res.status(400).json({ message: 'This category already exists for the resume.' });
+                }
+
+                // Если все проверки пройдены, добавляем новую категорию к резюме
+                const insertQuery = 'INSERT INTO resume_categories (ResumeId, CategoryId) VALUES (?, ?)';
+                connection.query(insertQuery, [ResumeId, CategoryId], (error, results) => {
+                    if (error) {
+                        return res.status(500).json({ message: 'Server error' });
+                    }
+
+                    res.status(201).json({ message: 'Category added to resume successfully.' });
+                });
             });
         });
-
     } catch (error) {
         console.error(error);
-        res.status(500).json({message: 'Server error'});
+        res.status(500).json({ message: 'Server error' });
     }
 });
+
 router.delete('/category/:id', async (req, res) => {
     try {
         const token = req.headers.authorization.split(' ')[1];
