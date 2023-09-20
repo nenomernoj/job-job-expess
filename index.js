@@ -8,11 +8,11 @@ const port = 3000; // Порт, на котором будет работать 
 app.get('/', (req, res) => {
     res.send('Привет, мир123!');
 });
-app.use(bodyParser.urlencoded({ extended: true }));
+/*app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 app.use('/auth', authRoutes); // Роуты для регистрации и аутентификации
-app.use('/api', apiRoutes);   // Роуты API для фронтенда
+app.use('/api', apiRoutes);   // Роуты API для фронтенда*/
 
 app.listen(3000, () => {
     console.log('Server is listening on port 3000');
