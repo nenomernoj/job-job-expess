@@ -13,10 +13,10 @@ router.get('/userResumes', async (req, res) => {
             SELECT 
                 r.Id, r.Information, 
                 GROUP_CONCAT(DISTINCT rc.CategoryId) AS categories, 
-                GROUP_CONCAT(DISTINCT e.SchoolName, '|', e.Specialization, '|', e.GraduationYear) AS education,
-                GROUP_CONCAT(DISTINCT l.LanguageName, '|', l.ProficiencyLevel) AS languages,
-                GROUP_CONCAT(DISTINCT s.SkillName) AS skills,
-                GROUP_CONCAT(DISTINCT we.EmployerName, '|', we.Period, '|', we.Description) AS workExperience
+                GROUP_CONCAT(DISTINCT e.Id, '|', e.SchoolName, '|', e.Specialization, '|', e.GraduationYear) AS education,
+                GROUP_CONCAT(DISTINCT l.Id, '|', l.LanguageName, '|', l.ProficiencyLevel) AS languages,
+                GROUP_CONCAT(DISTINCT s.Id, '|', s.SkillName) AS skills,
+                GROUP_CONCAT(DISTINCT we.Id, '|', we.EmployerName, '|', we.Period, '|', we.Description) AS workExperience
             FROM resumes r
             LEFT JOIN resume_categories rc ON r.Id = rc.ResumeId
             LEFT JOIN education e ON r.Id = e.ResumeId
@@ -37,17 +37,20 @@ router.get('/userResumes', async (req, res) => {
                     ...resume,
                     categories: resume.categories ? resume.categories.split(',') : [],
                     education: resume.education ? resume.education.split(',').map(e => {
-                        const [SchoolName, Specialization, GraduationYear] = e.split('|');
-                        return { SchoolName, Specialization, GraduationYear };
+                        const [Id, SchoolName, Specialization, GraduationYear] = e.split('|');
+                        return { Id, SchoolName, Specialization, GraduationYear };
                     }) : [],
                     languages: resume.languages ? resume.languages.split(',').map(l => {
-                        const [LanguageName, ProficiencyLevel] = l.split('|');
-                        return { LanguageName, ProficiencyLevel };
+                        const [Id, LanguageName, ProficiencyLevel] = l.split('|');
+                        return { Id, LanguageName, ProficiencyLevel };
                     }) : [],
-                    skills: resume.skills ? resume.skills.split(',') : [],
+                    skills: resume.skills ? resume.skills.split(',').map(s => {
+                        const [Id, SkillName] = s.split('|');
+                        return { Id, SkillName };
+                    }) : [],
                     workExperience: resume.workExperience ? resume.workExperience.split(',').map(we => {
-                        const [EmployerName, Period, Description] = we.split('|');
-                        return { EmployerName, Period, Description };
+                        const [Id, EmployerName, Period, Description] = we.split('|');
+                        return { Id, EmployerName, Period, Description };
                     }) : []
                 };
             });
@@ -59,6 +62,7 @@ router.get('/userResumes', async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 });
+
 
 
 router.post('/addNew', (req, res) => {
