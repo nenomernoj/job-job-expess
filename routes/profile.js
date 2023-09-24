@@ -96,7 +96,7 @@ router.post('/upload-profile-image', upload.single('profileImage'), async (req, 
                     return;
                 }
 
-                if (results && results.length > 0) {
+                if (results[0].photo) {
                     const oldImagePath = results[0].photo;  // предполагаем, что это полный URL
                     const oldImageFileName = oldImagePath.split('/').pop();  // извлекаем имя файла из URL
 
