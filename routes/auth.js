@@ -19,7 +19,7 @@ router.post('/getOtp', (req, res) => {
             // Проверка наличия существующей записи с тем же номером телефона и временем менее 2 минут назад
             const checkQuery = 'SELECT * FROM SMSVerification WHERE phone_number = ?';
             connection.query(checkQuery, [phone_number], (err, rows) => {
-                if (rows.length > 0) {
+                if (rows && rows.length > 0) {
                     const currentTime = new Date();
                     const sendDate = new Date(rows[0].added_time);
                     const timeDifference = currentTime - sendDate; // Разница в миллисекундах
