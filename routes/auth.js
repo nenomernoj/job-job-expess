@@ -17,14 +17,14 @@ router.post('/getOtp', (req, res) => {
     connection.query(checkUserExist, [phone_number], (err, usersRows) => {
         if (usersRows.length === 0) {
             // Проверка наличия существующей записи с тем же номером телефона и временем менее 2 минут назад
-            const checkQuery = 'SELECT * FROM SMSVerification WHERE phone_number = ?';
+            const checkQuery = 'SELECT * FROM smsverification WHERE phone_number = ?';
             connection.query(checkQuery, [phone_number], (err, rows) => {
                 if (rows && rows.length > 0) {
                     const currentTime = new Date();
                     const sendDate = new Date(rows[0].added_time);
                     const timeDifference = currentTime - sendDate; // Разница в миллисекундах
                     if (timeDifference >= 2 * 60 * 1000) {
-                        const deleteQuery = 'DELETE FROM SMSVerification WHERE phone_number = ?';
+                        const deleteQuery = 'DELETE FROM smsverification WHERE phone_number = ?';
                         connection.query(deleteQuery, [phone_number], (err, result) => {
                             if (err) {
                                 console.error('Ошибка при удалении записи: ' + err.message);
@@ -62,7 +62,7 @@ router.post('/getOtp', (req, res) => {
             }
         })
             .then((response) => {
-                const insertQuery = 'INSERT INTO SMSVerification (phone_number, sms_code) VALUES (?, ?)';
+                const insertQuery = 'INSERT INTO smsverification (phone_number, sms_code) VALUES (?, ?)';
                 connection.query(insertQuery, [phone_number, sms_code], (err, result) => {
                     if (err) {
                         console.error('Ошибка вставки записи: ' + err.message);
