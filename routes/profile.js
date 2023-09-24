@@ -78,7 +78,7 @@ router.post('/upload-profile-image', upload.single('profileImage'), async (req, 
             await sharp(processedImageBuffer).toFile(localImagePath);
 
             // Полный путь для доступа к изображению через веб
-            const baseImageUrl = 'http://localhost:3000/images/';
+            const baseImageUrl = 'http://77.243.80.246:3000//images/';
             const fullImageUrl = baseImageUrl + imageName;
             fs.unlink(req.file.path, err => {
                 if (err) {
@@ -90,24 +90,25 @@ router.post('/upload-profile-image', upload.single('profileImage'), async (req, 
             // Обновление пути изображения в базе данных для пользователя
 
             const oldImageQuery = 'SELECT photo FROM users WHERE id = ?';
-            connection.query(oldImageQuery, [userId], (error, results) => {
-                if (error) {
-                    console.error('Error fetching old image path:', error);
-                    return;
-                }
-
-                const oldImagePath = results[0].photo;  // предполагаем, что это полный URL
-                const oldImageFileName = oldImagePath.split('/').pop();  // извлекаем имя файла из URL
-
-                fs.unlink(`processed_images/${oldImageFileName}`, err => {
-                    if (err) {
-                        console.error('Error while deleting the old profile image:', err);
-                    } else {
-                        console.log('Old profile image deleted successfully');
+            if (results && results.length > 0) {
+                connection.query(oldImageQuery, [userId], (error, results) => {
+                    if (error) {
+                        console.error('Error fetching old image path:', error);
+                        return;
                     }
+
+                    const oldImagePath = results[0].photo;  // предполагаем, что это полный URL
+                    const oldImageFileName = oldImagePath.split('/').pop();  // извлекаем имя файла из URL
+
+                    fs.unlink(`processed_images/${oldImageFileName}`, err => {
+                        if (err) {
+                            console.error('Error while deleting the old profile image:', err);
+                        } else {
+                            console.log('Old profile image deleted successfully');
+                        }
+                    });
                 });
-
-
+            } else {
                 const updateQuery = 'UPDATE users SET photo = ? WHERE id = ?';
                 connection.query(updateQuery, [fullImageUrl, userId], (error) => {
                     if (error) {
@@ -116,7 +117,8 @@ router.post('/upload-profile-image', upload.single('profileImage'), async (req, 
 
                     res.status(200).json({message: 'Profile image updated successfully', imagePath: fullImageUrl});
                 });
-            });
+            }
+
         });
     } catch (error) {
         console.error(error);
