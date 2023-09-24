@@ -90,13 +90,13 @@ router.post('/upload-profile-image', upload.single('profileImage'), async (req, 
             // Обновление пути изображения в базе данных для пользователя
 
             const oldImageQuery = 'SELECT photo FROM users WHERE id = ?';
-            if (results && results.length > 0) {
-                connection.query(oldImageQuery, [userId], (error, results) => {
-                    if (error) {
-                        console.error('Error fetching old image path:', error);
-                        return;
-                    }
+            connection.query(oldImageQuery, [userId], (error, results) => {
+                if (error) {
+                    console.error('Error fetching old image path:', error);
+                    return;
+                }
 
+                if (results && results.length > 0) {
                     const oldImagePath = results[0].photo;  // предполагаем, что это полный URL
                     const oldImageFileName = oldImagePath.split('/').pop();  // извлекаем имя файла из URL
 
@@ -107,8 +107,8 @@ router.post('/upload-profile-image', upload.single('profileImage'), async (req, 
                             console.log('Old profile image deleted successfully');
                         }
                     });
-                });
-            } else {
+                }
+
                 const updateQuery = 'UPDATE users SET photo = ? WHERE id = ?';
                 connection.query(updateQuery, [fullImageUrl, userId], (error) => {
                     if (error) {
@@ -117,8 +117,7 @@ router.post('/upload-profile-image', upload.single('profileImage'), async (req, 
 
                     res.status(200).json({message: 'Profile image updated successfully', imagePath: fullImageUrl});
                 });
-            }
-
+            });
         });
     } catch (error) {
         console.error(error);
