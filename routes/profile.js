@@ -124,4 +124,42 @@ router.post('/upload-profile-image', upload.single('profileImage'), async (req, 
         res.status(500).json({message: 'Server error'});
     }
 });
+
+router.delete('/deleteUser', (req, res) => {
+    try {
+        // 1. Извлеките токен из заголовка авторизации
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).json({message: 'Authorization header is missing'});
+        }
+
+        const token = authHeader.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({message: 'Token is missing'});
+        }
+
+        // 2. Верифицируйте токен
+        jwt.verify(token, JWT_SECRET, (err, decoded) => {
+            if (err) {
+                return res.status(403).json({message: 'Invalid token'});
+            }
+
+            const userId = decoded.user.Id;
+            // 3. Используйте userId, чтобы обновить информацию в базе данных
+            const deleteUserQuery = 'DELETE FROM users WHERE Id = ?';
+
+            connection.query(deleteUserQuery, [userId], (error) => {
+                if (error) {
+                    console.log(error);
+                    return res.status(500).json({message: 'Error updating user information'});
+                }
+
+                res.status(200).json({message: 'Deleted!'});
+            });
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({message: 'Server error'});
+    }
+});
 module.exports = router;
