@@ -51,7 +51,7 @@ router.get('/jobs', (req, res) => {
         res.status(200).json(results);
     });
 });
-router.getAll('/jobsAll', (req, res) => {
+router.get('/jobsAll', (req, res) => {
     let selectQuery = 'SELECT * FROM jobs';
     connection.query(selectQuery, (error, results) => {
         if (error) return res.status(500).json({message: 'Server error', error});
