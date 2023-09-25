@@ -29,7 +29,7 @@ router.get('/userResumes', async (req, res) => {
 
         connection.query(getResumesQuery, [userId], (error, results) => {
             if (error) {
-                return res.status(500).json({ message: 'Server error' });
+                return res.status(500).json({message: 'Server error'});
             }
 
             const detailedResumes = results.map(resume => {
@@ -38,19 +38,19 @@ router.get('/userResumes', async (req, res) => {
                     categories: resume.categories ? resume.categories.split(',') : [],
                     education: resume.education ? resume.education.split(',').map(e => {
                         const [Id, SchoolName, Specialization, GraduationYear] = e.split('|');
-                        return { Id, SchoolName, Specialization, GraduationYear };
+                        return {Id, SchoolName, Specialization, GraduationYear};
                     }) : [],
                     languages: resume.languages ? resume.languages.split(',').map(l => {
                         const [Id, LanguageName, ProficiencyLevel] = l.split('|');
-                        return { Id, LanguageName, ProficiencyLevel };
+                        return {Id, LanguageName, ProficiencyLevel};
                     }) : [],
                     skills: resume.skills ? resume.skills.split(',').map(s => {
                         const [Id, SkillName] = s.split('|');
-                        return { Id, SkillName };
+                        return {Id, SkillName};
                     }) : [],
                     workExperience: resume.workExperience ? resume.workExperience.split(',').map(we => {
                         const [Id, EmployerName, Period, Description] = we.split('|');
-                        return { Id, EmployerName, Period, Description };
+                        return {Id, EmployerName, Period, Description};
                     }) : []
                 };
             });
@@ -59,10 +59,9 @@ router.get('/userResumes', async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({message: 'Server error'});
     }
 });
-
 
 
 router.post('/addNew', (req, res) => {
@@ -491,44 +490,44 @@ router.post('/category', async (req, res) => {
         const token = req.headers.authorization.split(' ')[1];
         const decoded = jwt.verify(token, JWT_SECRET);
         const userId = decoded.user.Id;
-        const { ResumeId, CategoryId } = req.body;
+        const {ResumeId, CategoryId} = req.body;
 
         // Проверяем принадлежность резюме текущему пользователю
         const resumeOwnerCheckQuery = 'SELECT UserId FROM resumes WHERE Id = ?';
         connection.query(resumeOwnerCheckQuery, [ResumeId], (error, results) => {
             if (error) {
-                return res.status(500).json({ message: 'Server error' });
+                return res.status(500).json({message: 'Server error'});
             }
 
             if (results.length === 0 || results[0].UserId !== userId) {
-                return res.status(403).json({ message: 'You are not authorized to modify this resume.' });
+                return res.status(403).json({message: 'You are not authorized to modify this resume.'});
             }
 
             // Проверка на наличие уже существующей категории для этого резюме
             const categoryExistsQuery = 'SELECT * FROM resume_categories WHERE ResumeId = ? AND CategoryId = ?';
             connection.query(categoryExistsQuery, [ResumeId, CategoryId], (error, results) => {
                 if (error) {
-                    return res.status(500).json({ message: 'Server error' });
+                    return res.status(500).json({message: 'Server error'});
                 }
 
                 if (results.length > 0) {
-                    return res.status(400).json({ message: 'This category already exists for the resume.' });
+                    return res.status(400).json({message: 'This category already exists for the resume.'});
                 }
 
                 // Если все проверки пройдены, добавляем новую категорию к резюме
                 const insertQuery = 'INSERT INTO resume_categories (ResumeId, CategoryId) VALUES (?, ?)';
                 connection.query(insertQuery, [ResumeId, CategoryId], (error, results) => {
                     if (error) {
-                        return res.status(500).json({ message: 'Server error' });
+                        return res.status(500).json({message: 'Server error'});
                     }
 
-                    res.status(201).json({ message: 'Category added to resume successfully.' });
+                    res.status(201).json({message: 'Category added to resume successfully.'});
                 });
             });
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({message: 'Server error'});
     }
 });
 
@@ -562,8 +561,67 @@ router.delete('/category/:id', async (req, res) => {
 router.get('/category', (req, res) => {
     let selectQuery = 'SELECT * FROM categories';
     connection.query(selectQuery, (error, results) => {
-        if (error) return res.status(500).json({ message: 'Server error', error });
+        if (error) return res.status(500).json({message: 'Server error', error});
         res.status(200).json(results);
     });
+});
+router.delete('/categoryDelete/:id', async (req, res) => {
+    try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userId = decoded.user.Id;
+        const categoryId = req.params.id;
+        const deleteQuery = 'DELETE FROM categories WHERE Id = ?';
+        connection.query(deleteQuery, [categoryId], (error) => {
+            if (error) {
+                return res.status(500).json({message: 'Server error'});
+            }
+            res.status(200).json({message: 'Category removed from resume successfully'});
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({message: 'Server error'});
+    }
+});
+
+router.post('/categoryAdd', async (req, res) => {
+    try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userId = decoded.user.Id;
+        const {name} = req.body;
+        // Проверяем принадлежность резюме текущему пользователю
+        // Если все проверки пройдены, добавляем новую категорию к резюме
+        const insertQuery = 'INSERT INTO categories (Name) VALUES (?)';
+        connection.query(insertQuery, [name], (error, results) => {
+            if (error) {
+                return res.status(500).json({message: 'Server error'});
+            }
+
+            res.status(201).json({message: 'Category added'});
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({message: 'Server error'});
+    }
+});
+router.put('/categoryEdit/:id', async (req, res) => {
+    try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userId = decoded.user.Id;
+        const {name} = req.body;
+        const id = req.params.id;
+        const updateQuery = 'UPDATE categories SET Name = ? WHERE Id = ?';
+        connection.query(updateQuery, [name, id], (error) => {
+            if (error) {
+                return res.status(500).json({message: 'Server error'});
+            }
+            res.status(200).json({message: 'Skill updated successfully'});
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({message: 'Server error'});
+    }
 });
 module.exports = router;
