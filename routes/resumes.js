@@ -574,12 +574,14 @@ router.delete('/categoryDelete/:id', async (req, res) => {
         const deleteQuery = 'DELETE FROM categories WHERE Id = ?';
         connection.query(deleteQuery, [categoryId], (error) => {
             if (error) {
+                console.log(error);
                 return res.status(500).json({message: 'Server error'});
             }
             res.status(200).json({message: 'Category removed from resume successfully'});
         });
     } catch (error) {
         console.error(error);
+        console.log(error);
         res.status(500).json({message: 'Server error'});
     }
 });
@@ -595,6 +597,7 @@ router.post('/categoryAdd', async (req, res) => {
         const insertQuery = 'INSERT INTO categories (Name) VALUES (?)';
         connection.query(insertQuery, [name], (error, results) => {
             if (error) {
+                console.log(error);
                 return res.status(500).json({message: 'Server error'});
             }
 
@@ -615,6 +618,7 @@ router.put('/categoryEdit/:id', async (req, res) => {
         const updateQuery = 'UPDATE categories SET Name = ? WHERE Id = ?';
         connection.query(updateQuery, [name, id], (error) => {
             if (error) {
+                console.log(error);
                 return res.status(500).json({message: 'Server error'});
             }
             res.status(200).json({message: 'Skill updated successfully'});
