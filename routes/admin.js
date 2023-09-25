@@ -1,15 +1,9 @@
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const express = require("express");
 const {JWT_SECRET} = require("../config");
 const router = express.Router();
 // Транспорт для nodemailer
-let transporter = nodemailer.createTransport({
-    service: 'gmail', auth: {
-        user: 'job.kz.job@gmail.com', pass: 'Qwerty123#$%'
-    }
-});
 const allowedPhones = ['77078528400'];
 const connection = require('../db');  // Подключите вашу конфигурацию MySQL
 router.post('/addUser', async (req, res) => {
@@ -196,24 +190,19 @@ router.get('/getUserById/:id', async (req, res) => {
 
                 const detailedResumes = resumeResults.map(resume => {
                     return {
-                        ...resume,
-                        categories: resume.categories ? resume.categories.split(',').map(e => {
+                        ...resume, categories: resume.categories ? resume.categories.split(',').map(e => {
                             const [Id, CategoryId] = e.split('|');
                             return {Id, CategoryId};
-                        }) : [],
-                        education: resume.education ? resume.education.split(',').map(e => {
+                        }) : [], education: resume.education ? resume.education.split(',').map(e => {
                             const [Id, SchoolName, Specialization, GraduationYear] = e.split('|');
                             return {Id, SchoolName, Specialization, GraduationYear};
-                        }) : [],
-                        languages: resume.languages ? resume.languages.split(',').map(l => {
+                        }) : [], languages: resume.languages ? resume.languages.split(',').map(l => {
                             const [Id, LanguageName, ProficiencyLevel] = l.split('|');
                             return {Id, LanguageName, ProficiencyLevel};
-                        }) : [],
-                        skills: resume.skills ? resume.skills.split(',').map(s => {
+                        }) : [], skills: resume.skills ? resume.skills.split(',').map(s => {
                             const [Id, SkillName] = s.split('|');
                             return {Id, SkillName};
-                        }) : [],
-                        workExperience: resume.workExperience ? resume.workExperience.split(',').map(we => {
+                        }) : [], workExperience: resume.workExperience ? resume.workExperience.split(',').map(we => {
                             const [Id, EmployerName, Period, Description] = we.split('|');
                             return {Id, EmployerName, Period, Description};
                         }) : []
@@ -222,8 +211,7 @@ router.get('/getUserById/:id', async (req, res) => {
 
                 // Объедините пользовательские данные с данными резюме
                 const responseData = {
-                    ...user,
-                    resumes: detailedResumes
+                    ...user, resumes: detailedResumes
                 };
 
                 res.status(200).json(responseData);
