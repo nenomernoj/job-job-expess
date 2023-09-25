@@ -581,7 +581,6 @@ router.delete('/categoryDelete/:id', async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        console.log(error);
         res.status(500).json({message: 'Server error'});
     }
 });
@@ -605,7 +604,7 @@ router.post('/categoryAdd', async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({message: 'Server error'});
+        res.status(401).json({message: 'Server error'});
     }
 });
 router.put('/categoryEdit/:id', async (req, res) => {
