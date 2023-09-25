@@ -491,7 +491,6 @@ router.post('/category', async (req, res) => {
         const token = req.headers.authorization.split(' ')[1];
         const decoded = jwt.verify(token, JWT_SECRET);
         const userId = decoded.user.Id;
-
         const { ResumeId, CategoryId } = req.body;
 
         // Проверяем принадлежность резюме текущему пользователю
@@ -560,5 +559,11 @@ router.delete('/category/:id', async (req, res) => {
         res.status(500).json({message: 'Server error'});
     }
 });
-
+router.get('/category', (req, res) => {
+    let selectQuery = 'SELECT * FROM categories';
+    connection.query(selectQuery, (error, results) => {
+        if (error) return res.status(500).json({ message: 'Server error', error });
+        res.status(200).json(results);
+    });
+});
 module.exports = router;
