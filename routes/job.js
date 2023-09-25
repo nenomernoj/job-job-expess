@@ -8,23 +8,23 @@ const router = express.Router();
 const {JWT_SECRET, JWT_SECRET2} = require('../config');
 router.post('/job', async (req, res) => {
     const {
-        Title,
-        Salary,
-        WorkSchedule,
-        Responsibilities,
-        Requirements,
-        Address,
-        ContactPhone,
-        ContactWhatsApp,
-        Author,
-        CategoryId,
-        Status,
-        CityId
+        title,
+        salary,
+        workSchedule,
+        responsibilities,
+        requirements,
+        address,
+        contactPhone,
+        contactWhatsApp,
+        author,
+        categoryId,
+        status,
+        cityId
     } = req.body;
 
     const insertQuery = 'INSERT INTO jobs (Title, Salary, WorkSchedule, Responsibilities, Requirements, Address, ContactPhone, ContactWhatsApp, Author, CreationDate, CategoryId, Status, CityId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)';
 
-    connection.query(insertQuery, [Title, Salary, WorkSchedule, Responsibilities, Requirements, Address, ContactPhone, ContactWhatsApp, Author, CategoryId, Status, CityId], (error, results) => {
+    connection.query(insertQuery, [title, salary, workSchedule, responsibilities, requirements, address, contactPhone, contactWhatsApp, author, categoryId, status, cityId], (error, results) => {
         if (error) return res.status(500).json({message: 'Server error', error});
         res.status(201).json({message: 'Job created successfully.'});
     });
@@ -68,22 +68,22 @@ router.get('/job/:id', (req, res) => {
 router.put('/job/:id', (req, res) => {
     const jobId = req.params.id;
     const {
-        Title,
-        Salary,
-        WorkSchedule,
-        Responsibilities,
-        Requirements,
-        Address,
-        ContactPhone,
-        ContactWhatsApp,
-        CategoryId,
-        Status,
-        CityId
+        title,
+        salary,
+        workSchedule,
+        responsibilities,
+        requirements,
+        address,
+        contactPhone,
+        contactWhatsApp,
+        categoryId,
+        status,
+        cityId
     } = req.body;
 
-    const updateQuery = 'UPDATE jobs SET Title = ?, Salary = ?, WorkSchedule = ?, Responsibilities = ?, Requirements = ?, Address = ?, ContactPhone = ?, ContactWhatsApp = ?, CategoryId = ?, Status = ? WHERE Id = ?, CityId = ?';
+    const updateQuery = 'UPDATE jobs SET Title = ?, Salary = ?, WorkSchedule = ?, Responsibilities = ?, Requirements = ?, Address = ?, ContactPhone = ?, ContactWhatsApp = ?, CategoryId = ?, Status = ? , CityId = ? WHERE Id = ?';
 
-    connection.query(updateQuery, [Title, Salary, WorkSchedule, Responsibilities, Requirements, Address, ContactPhone, ContactWhatsApp, CategoryId, Status, jobId, CityId], (error, results) => {
+    connection.query(updateQuery, [title, salary, workSchedule, responsibilities, requirements, address, contactPhone, contactWhatsApp, categoryId, status, cityId, jobId], (error, results) => {
         if (error) return res.status(500).json({message: 'Server error', error});
         if (results.affectedRows === 0) return res.status(404).json({message: 'Job not found.'});
         res.status(200).json({message: 'Job updated successfully.'});
