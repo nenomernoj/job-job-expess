@@ -66,7 +66,6 @@ router.get('/userResumes', async (req, res) => {
 
 router.post('/addNew', (req, res) => {
     const token = req.headers.authorization.split(' ')[1];  // Извлечь токен из заголовка 'Authorization'
-
     if (!token) {
         return res.status(403).json({message: 'No token provided'});
     }
@@ -530,7 +529,6 @@ router.post('/category', async (req, res) => {
         res.status(500).json({message: 'Server error'});
     }
 });
-
 router.delete('/category/:id', async (req, res) => {
     try {
         const token = req.headers.authorization.split(' ')[1];
@@ -581,10 +579,9 @@ router.delete('/categoryDelete/:id', async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({message: 'Server error'});
+        res.status(401).json({message: 'Server error'});
     }
 });
-
 router.post('/categoryAdd', async (req, res) => {
     try {
         const token = req.headers.authorization.split(' ')[1];
@@ -624,7 +621,7 @@ router.put('/categoryEdit/:id', async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({message: 'Server error'});
+        res.status(401).json({message: 'Server error'});
     }
 });
 module.exports = router;

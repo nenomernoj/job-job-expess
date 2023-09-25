@@ -124,7 +124,6 @@ router.post('/upload-profile-image', upload.single('profileImage'), async (req, 
         res.status(500).json({message: 'Server error'});
     }
 });
-
 router.delete('/deleteUser', (req, res) => {
     try {
         // 1. Извлеките токен из заголовка авторизации
