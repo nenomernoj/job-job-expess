@@ -47,11 +47,17 @@ router.get('/jobs', (req, res) => {
     }
 
     connection.query(selectQuery, queryParams, (error, results) => {
-        if (error) return res.status(500).json({ message: 'Server error', error });
+        if (error) return res.status(500).json({message: 'Server error', error});
         res.status(200).json(results);
     });
 });
-
+router.getAll('/jobsAll', (req, res) => {
+    let selectQuery = 'SELECT * FROM jobs;
+    connection.query(selectQuery, (error, results) => {
+        if (error) return res.status(500).json({message: 'Server error', error});
+        res.status(200).json(results);
+    });
+});
 
 // Получить конкретную работу по Id
 router.get('/job/:id', (req, res) => {
