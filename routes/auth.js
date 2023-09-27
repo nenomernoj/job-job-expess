@@ -252,4 +252,127 @@ router.post('/verify-and-register', (req, res) => {
         res.status(500).json({message: 'Server error'});
     }
 });
+
+router.post('/requestPasswordReset', async (req, res) => {
+    const {phone_number} = req.body;
+    if (!phone_number || phone_number.length !== 11 || !containsOnlyNumbers(phone_number)) {
+        res.status(500).json({error: 'Неверный номер телефона'});
+        return;
+    }
+
+    const checkUserExist = 'SELECT * FROM users WHERE PhoneNumber = ?';
+    connection.query(checkUserExist, [phone_number], (err, usersRows) => {
+        if (usersRows.length > 0) {  // Если пользователь существует
+            const checkQuery = 'SELECT * FROM smsverification WHERE phone_number = ?';
+            connection.query(checkQuery, [phone_number], (err, rows) => {
+                if (rows && rows.length > 0) {
+                    const currentTime = new Date();
+                    const sendDate = new Date(rows[0].added_time);
+                    const timeDifference = currentTime - sendDate;
+                    if (timeDifference >= 2 * 60 * 1000) {
+                        const deleteQuery = 'DELETE FROM smsverification WHERE phone_number = ?';
+                        connection.query(deleteQuery, [phone_number], (err, result) => {
+                            if (err) {
+                                console.error('Ошибка при удалении записи: ' + err.message);
+                                res.status(500).json({error: 'Ошибка при удалении записи'});
+                                return;
+                            }
+
+                            // После удаления вставляем новую запись
+                            insertNewRecord();
+                        });
+                    } else {
+                        res.status(500).json({error: 'Прошло менее 2 минут'});
+                    }
+                } else {
+                    insertNewRecord();
+                }
+            });
+        } else {
+            res.status(500).json({error: 'Такой номер телефона не найден в системе'});
+        }
+    });
+
+    function insertNewRecord() {
+        const sms_code = Math.floor(Math.random() * 9000) + 1000;
+        const apiKey = 'kz0eeea0ff46739705065c0c7045f1edbf5d6a63ad5f58106936249e536af043c75037';
+        const recipient = phone_number;
+        const message = 'Job Job - Ваш код для сброса пароля: ' + sms_code;
+        axios.post(`https://api.mobizon.kz/service/message/sendSmsMessage?output=json&api=v1&apiKey=${apiKey}`, {
+            recipient: recipient, text: message,
+        }, {
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then((response) => {
+                const insertQuery = 'INSERT INTO smsverification (phone_number, sms_code) VALUES (?, ?)';
+                connection.query(insertQuery, [phone_number, sms_code], (err, result) => {
+                    if (err) {
+                        console.error('Ошибка вставки записи: ' + err.message);
+                        res.status(500).json({error: 'Ошибка вставки записи'});
+                    } else {
+                        res.status(200).json({message: 'Смс код для сброса пароля выслан'});
+                    }
+                });
+            })
+            .catch((error) => {
+                console.error('Ошибка отправки SMS:', error);
+                res.status(500).json({error: 'Ошибка отправки SMS'});
+            });
+    }
+
+    function containsOnlyNumbers(inputString) {
+        const regex = /^[0-9]+$/;
+        return regex.test(inputString);
+    }
+});
+router.post('/resetPassword', async (req, res) => {
+    const { phone_number, sms_code, new_password } = req.body;
+
+    if (!phone_number || phone_number.length !== 11 || !containsOnlyNumbers(phone_number)) {
+        res.status(500).json({error: 'Неверный номер телефона'});
+        return;
+    }
+
+    const checkSMSCode = 'SELECT * FROM smsverification WHERE phone_number = ? AND sms_code = ?';
+    connection.query(checkSMSCode, [phone_number, sms_code], async (err, rows) => {
+        if (err) {
+            console.error('Ошибка при проверке SMS-кода: ' + err.message);
+            return res.status(500).json({error: 'Ошибка при проверке SMS-кода'});
+        }
+
+        if (rows && rows.length > 0) {
+            // Хешируем новый пароль перед сохранением в базу
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(new_password, salt);
+
+            const updateUserPassword = 'UPDATE users SET Password = ? WHERE PhoneNumber = ?';
+            connection.query(updateUserPassword, [hashedPassword, phone_number], (err, result) => {
+                if (err) {
+                    console.error('Ошибка при обновлении пароля: ' + err.message);
+                    return res.status(500).json({error: 'Ошибка при обновлении пароля'});
+                }
+
+                const deleteUsedSMSCode = 'DELETE FROM smsverification WHERE phone_number = ?';
+                connection.query(deleteUsedSMSCode, [phone_number], (err, delResult) => {
+                    if (err) {
+                        console.error('Ошибка при удалении SMS-кода: ' + err.message);
+                        return res.status(500).json({error: 'Ошибка при удалении SMS-кода'});
+                    }
+
+                    res.status(200).json({message: 'Пароль успешно обновлен'});
+                });
+            });
+        } else {
+            res.status(400).json({error: 'Неверный SMS-код'});
+        }
+    });
+
+    function containsOnlyNumbers(inputString) {
+        const regex = /^[0-9]+$/;
+        return regex.test(inputString);
+    }
+});
+
 module.exports = router;

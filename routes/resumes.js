@@ -3,6 +3,71 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 const connection = require('../db');  // Подключите вашу конфигурацию MySQL
 const {JWT_SECRET, JWT_SECRET2} = require('../config');
+
+router.get('/getAllResumes', async (req, res) => {
+    try {
+        let {categoryId, cityId} = req.query;
+
+        // SQL-запрос
+        let query = `
+            SELECT 
+                r.Id as ResumeId, r.Information,
+                u.Id as UserId, u.FullName, u.BirthDate, u.Gender, u.CityId, u.PhoneNumber, u.Email,
+                GROUP_CONCAT(DISTINCT rc.CategoryId) AS Categories
+            FROM resumes r
+            INNER JOIN users u ON r.UserId = u.Id
+            LEFT JOIN resume_categories rc ON r.Id = rc.ResumeId
+            WHERE 1=1
+        `;
+
+        let queryParams = [];
+
+        // Если предоставлен categoryId
+        if (categoryId) {
+            query += ' AND rc.CategoryId = ?';
+            queryParams.push(categoryId);
+        }
+
+        // Если предоставлен cityId
+        if (cityId) {
+            query += ' AND u.CityId = ?';
+            queryParams.push(cityId);
+        }
+
+        query += ' GROUP BY r.Id';
+
+        // Выполнение запроса
+        connection.query(query, queryParams, (error, results) => {
+            if (error) {
+                console.error(error);
+                return res.status(500).json({message: 'Server error'});
+            }
+
+            // Маппинг результатов для создания структурированных данных резюме
+            const resumes = results.map(resume => ({
+                ResumeId: resume.ResumeId,
+                Information: resume.Information,
+                User: {
+                    Id: resume.UserId,
+                    FullName: resume.FullName,
+                    BirthDate: resume.BirthDate,
+                    Gender: resume.Gender,
+                    CityId: resume.CityId,
+                    PhoneNumber: resume.PhoneNumber,
+                    Email: resume.Email
+                },
+                Categories: resume.Categories ? resume.Categories.split(',') : []
+            }));
+
+            res.status(200).json(resumes);
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({message: 'Server error'});
+    }
+});
+
 router.get('/userResumes', async (req, res) => {
     try {
         const token = req.headers.authorization.split(' ')[1];
@@ -12,7 +77,7 @@ router.get('/userResumes', async (req, res) => {
         const getResumesQuery = `
             SELECT 
                 r.Id, r.Information, 
-                GROUP_CONCAT(DISTINCT rc.CategoryId) AS categories, 
+                GROUP_CONCAT(DISTINCT rc.Id, '|', rc.CategoryId) AS categories, 
                 GROUP_CONCAT(DISTINCT e.Id, '|', e.SchoolName, '|', e.Specialization, '|', e.GraduationYear) AS education,
                 GROUP_CONCAT(DISTINCT l.Id, '|', l.LanguageName, '|', l.ProficiencyLevel) AS languages,
                 GROUP_CONCAT(DISTINCT s.Id, '|', s.SkillName) AS skills,
@@ -35,7 +100,10 @@ router.get('/userResumes', async (req, res) => {
             const detailedResumes = results.map(resume => {
                 return {
                     ...resume,
-                    categories: resume.categories ? resume.categories.split(',') : [],
+                    categories: resume.categories ? resume.categories.split(',').map(e => {
+                        const [Id, CategoryId] = e.split('|');
+                        return {Id, CategoryId};
+                    }) : [],
                     education: resume.education ? resume.education.split(',').map(e => {
                         const [Id, SchoolName, Specialization, GraduationYear] = e.split('|');
                         return {Id, SchoolName, Specialization, GraduationYear};
@@ -62,8 +130,6 @@ router.get('/userResumes', async (req, res) => {
         res.status(500).json({message: 'Server error'});
     }
 });
-
-
 router.post('/addNew', (req, res) => {
     const token = req.headers.authorization.split(' ')[1];  // Извлечь токен из заголовка 'Authorization'
     if (!token) {

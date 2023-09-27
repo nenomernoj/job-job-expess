@@ -6,11 +6,12 @@ const profileRoutes = require('./routes/profile');
 const resumesRoutes = require('./routes/resumes');
 const jobsRoutes = require('./routes/job');
 const adminRoutes = require('./routes/admin')
+const favoritesRoutes = require('./routes/favorites');
 const app = express();
 const port = 3000; // Порт, на котором будет работать сервер
 // Маршрут для обработки корневого URL
 app.get('/', (req, res) => {
-    res.send('Привет, мир123!');
+    res.send('work');
 });
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
@@ -19,6 +20,7 @@ app.use('/profile', profileRoutes);   // Роуты API для фронтенд�
 app.use('/resumes', resumesRoutes);
 app.use('/jobs', jobsRoutes);
 app.use('/adminApi', adminRoutes);
+app.use('/favorites', favoritesRoutes);
 app.use('/images', express.static('processed_images'));
 app.listen(3000, () => {
     console.log('Server is listening on port 3000');

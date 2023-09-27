@@ -222,7 +222,6 @@ router.get('/getUserById/:id', async (req, res) => {
         res.status(500).json({message: 'Server error'});
     }
 });
-
 router.post('/createResume', (req, res) => {
     const token = req.headers.authorization.split(' ')[1];  // Извлечь токен из заголовка 'Authorization'
     if (!token) {
@@ -257,8 +256,6 @@ router.post('/createResume', (req, res) => {
         return res.status(401).json({message: 'Invalid token'});
     }
 });
-
-
 router.post('/experience', (req, res) => {
     const token = req.headers.authorization.split(' ')[1]; // Извлекаем токен из заголовка 'Authorization'
 
@@ -348,8 +345,6 @@ router.delete('/experience/:id', (req, res) => {
         return res.status(401).json({message: 'Invalid token'});
     }
 });
-
-
 router.post('/education', (req, res) => {
     const token = req.headers.authorization.split(' ')[1];
 
