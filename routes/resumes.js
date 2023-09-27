@@ -6,65 +6,72 @@ const {JWT_SECRET, JWT_SECRET2} = require('../config');
 
 router.get('/getAllResumes', async (req, res) => {
     try {
-        let {categoryId, cityId} = req.query;
+        const { categoryId, cityId } = req.query;
 
-        // SQL-запрос
-        let query = `
+        let sql = `
             SELECT 
-                r.Id as ResumeId, r.Information,
-                u.Id as UserId, u.FullName, u.BirthDate, u.Gender, u.CityId, u.PhoneNumber, u.Email,
-                GROUP_CONCAT(DISTINCT rc.CategoryId) AS Categories
+                r.*, 
+                u.FullName, u.Email, u.CityId,
+                GROUP_CONCAT(DISTINCT rc.CategoryId) AS categories,
+                GROUP_CONCAT(DISTINCT e.SchoolName, '|', e.Specialization, '|', e.GraduationYear) AS education,
+                GROUP_CONCAT(DISTINCT l.LanguageName, '|', l.ProficiencyLevel) AS languages,
+                GROUP_CONCAT(DISTINCT s.SkillName) AS skills,
+                GROUP_CONCAT(DISTINCT we.EmployerName, '|', we.Period, '|', we.Description) AS workExperience
             FROM resumes r
             INNER JOIN users u ON r.UserId = u.Id
             LEFT JOIN resume_categories rc ON r.Id = rc.ResumeId
-            WHERE 1=1
+            LEFT JOIN education e ON r.Id = e.ResumeId
+            LEFT JOIN languages l ON r.Id = l.ResumeId
+            LEFT JOIN skills s ON r.Id = s.ResumeId
+            LEFT JOIN workexperience we ON r.Id = we.ResumeId
         `;
 
-        let queryParams = [];
-
-        // Если предоставлен categoryId
+        const values = [];
         if (categoryId) {
-            query += ' AND rc.CategoryId = ?';
-            queryParams.push(categoryId);
+            sql += ' WHERE rc.CategoryId = ?';
+            values.push(categoryId);
         }
 
-        // Если предоставлен cityId
         if (cityId) {
-            query += ' AND u.CityId = ?';
-            queryParams.push(cityId);
+            if(values.length) {
+                sql += ' AND u.CityId = ?';
+            } else {
+                sql += ' WHERE u.CityId = ?';
+            }
+            values.push(cityId);
         }
 
-        query += ' GROUP BY r.Id';
+        sql += ' GROUP BY r.Id';
 
-        // Выполнение запроса
-        connection.query(query, queryParams, (error, results) => {
+        connection.query(sql, values, (error, results) => {
             if (error) {
                 console.error(error);
-                return res.status(500).json({message: 'Server error'});
+                return res.status(500).json({ message: 'Server error' });
             }
 
-            // Маппинг результатов для создания структурированных данных резюме
-            const resumes = results.map(resume => ({
-                ResumeId: resume.ResumeId,
-                Information: resume.Information,
-                User: {
-                    Id: resume.UserId,
-                    FullName: resume.FullName,
-                    BirthDate: resume.BirthDate,
-                    Gender: resume.Gender,
-                    CityId: resume.CityId,
-                    PhoneNumber: resume.PhoneNumber,
-                    Email: resume.Email
-                },
-                Categories: resume.Categories ? resume.Categories.split(',') : []
+            const detailedResumes = results.map(resume => ({
+                ...resume,
+                categories: resume.categories ? resume.categories.split(',') : [],
+                education: resume.education ? resume.education.split(',').map(e => {
+                    const [SchoolName, Specialization, GraduationYear] = e.split('|');
+                    return { SchoolName, Specialization, GraduationYear };
+                }) : [],
+                languages: resume.languages ? resume.languages.split(',').map(l => {
+                    const [LanguageName, ProficiencyLevel] = l.split('|');
+                    return { LanguageName, ProficiencyLevel };
+                }) : [],
+                skills: resume.skills ? resume.skills.split(',') : [],
+                workExperience: resume.workExperience ? resume.workExperience.split(',').map(we => {
+                    const [EmployerName, Period, Description] = we.split('|');
+                    return { EmployerName, Period, Description };
+                }) : []
             }));
 
-            res.status(200).json(resumes);
+            res.status(200).json(detailedResumes);
         });
-
     } catch (error) {
         console.error(error);
-        res.status(500).json({message: 'Server error'});
+        res.status(500).json({ message: 'Server error' });
     }
 });
 

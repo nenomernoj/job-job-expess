@@ -106,8 +106,6 @@ router.get('/get-favorites', async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 });
-
-
 router.delete('/remove-from-favorites', async (req, res) => {
     try {
         const token = req.headers.authorization.split(' ')[1];
