@@ -6,12 +6,12 @@ const {JWT_SECRET, JWT_SECRET2} = require('../config');
 
 router.get('/getAllResumes', async (req, res) => {
     try {
-        const { categoryId, cityId } = req.query;
+        const {categoryId, cityId} = req.query;
 
         let sql = `
             SELECT 
                 r.*, 
-                u.FullName, u.Email, u.CityId,
+                u.FullName, u.Email, u.CityId, u.PhoneNumber AS Phone, u.Photo,
                 GROUP_CONCAT(DISTINCT rc.CategoryId) AS categories,
                 GROUP_CONCAT(DISTINCT e.SchoolName, '|', e.Specialization, '|', e.GraduationYear) AS education,
                 GROUP_CONCAT(DISTINCT l.LanguageName, '|', l.ProficiencyLevel) AS languages,
@@ -33,7 +33,7 @@ router.get('/getAllResumes', async (req, res) => {
         }
 
         if (cityId) {
-            if(values.length) {
+            if (values.length) {
                 sql += ' AND u.CityId = ?';
             } else {
                 sql += ' WHERE u.CityId = ?';
@@ -46,7 +46,7 @@ router.get('/getAllResumes', async (req, res) => {
         connection.query(sql, values, (error, results) => {
             if (error) {
                 console.error(error);
-                return res.status(500).json({ message: 'Server error' });
+                return res.status(500).json({message: 'Server error'});
             }
 
             const detailedResumes = results.map(resume => ({
@@ -54,16 +54,16 @@ router.get('/getAllResumes', async (req, res) => {
                 categories: resume.categories ? resume.categories.split(',') : [],
                 education: resume.education ? resume.education.split(',').map(e => {
                     const [SchoolName, Specialization, GraduationYear] = e.split('|');
-                    return { SchoolName, Specialization, GraduationYear };
+                    return {SchoolName, Specialization, GraduationYear};
                 }) : [],
                 languages: resume.languages ? resume.languages.split(',').map(l => {
                     const [LanguageName, ProficiencyLevel] = l.split('|');
-                    return { LanguageName, ProficiencyLevel };
+                    return {LanguageName, ProficiencyLevel};
                 }) : [],
                 skills: resume.skills ? resume.skills.split(',') : [],
                 workExperience: resume.workExperience ? resume.workExperience.split(',').map(we => {
                     const [EmployerName, Period, Description] = we.split('|');
-                    return { EmployerName, Period, Description };
+                    return {EmployerName, Period, Description};
                 }) : []
             }));
 
@@ -71,7 +71,7 @@ router.get('/getAllResumes', async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({message: 'Server error'});
     }
 });
 
