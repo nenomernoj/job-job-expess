@@ -4,7 +4,7 @@ const express = require("express");
 const {JWT_SECRET} = require("../config");
 const router = express.Router();
 // Транспорт для nodemailer
-const allowedPhones = ['77078528400'];
+const allowedPhones = ['77078528400', '77068180777', '77711737021'];
 const connection = require('../db');  // Подключите вашу конфигурацию MySQL
 router.post('/addUser', async (req, res) => {
     try {
