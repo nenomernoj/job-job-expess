@@ -78,7 +78,7 @@ router.post('/upload-profile-image', upload.single('profileImage'), async (req, 
             await sharp(processedImageBuffer).toFile(localImagePath);
 
             // Полный путь для доступа к изображению через веб
-            const baseImageUrl = 'https://api.bashuner.kz/images/';
+            const baseImageUrl = 'https://api.bashunter.kz/images/';
             const fullImageUrl = baseImageUrl + imageName;
             fs.unlink(req.file.path, err => {
                 if (err) {
