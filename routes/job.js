@@ -45,14 +45,14 @@ router.get('/jobs', (req, res) => {
         selectQuery += ' AND CategoryId = ?';
         queryParams.push(req.query.CategoryId);
     }
-    selectQuery += ' ORDER BY Id DESC';
+    selectQuery += ' ORDER BY Id';
     connection.query(selectQuery, queryParams, (error, results) => {
         if (error) return res.status(500).json({message: 'Server error', error});
         res.status(200).json(results);
     });
 });
 router.get('/jobsAll', (req, res) => {
-    let selectQuery = 'SELECT * FROM jobs ORDER BY Id DESC';
+    let selectQuery = 'SELECT * FROM jobs ORDER BY Id';
     connection.query(selectQuery, (error, results) => {
         if (error) return res.status(500).json({message: 'Server error', error});
         res.status(200).json(results);
