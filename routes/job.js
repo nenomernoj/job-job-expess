@@ -45,7 +45,7 @@ router.get('/jobs', (req, res) => {
         selectQuery += ' AND CategoryId = ?';
         queryParams.push(req.query.CategoryId);
     }
-
+    selectQuery += ' ORDER BY Id DESC';
     connection.query(selectQuery, queryParams, (error, results) => {
         if (error) return res.status(500).json({message: 'Server error', error});
         res.status(200).json(results);
