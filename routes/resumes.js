@@ -41,7 +41,7 @@ router.get('/getAllResumes', async (req, res) => {
             values.push(cityId);
         }
 
-        sql += ' GROUP BY r.Id';
+        sql += ' GROUP BY r.Id ORDER BY r.Id DESC';
 
         connection.query(sql, values, (error, results) => {
             if (error) {

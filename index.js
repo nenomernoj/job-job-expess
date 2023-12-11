@@ -7,6 +7,7 @@ const resumesRoutes = require('./routes/resumes');
 const jobsRoutes = require('./routes/job');
 const adminRoutes = require('./routes/admin')
 const favoritesRoutes = require('./routes/favorites');
+const authOrgRoutes = require('./routes/auth_company');
 const app = express();
 const port = 3000; // Порт, на котором будет работать сервер
 // Маршрут для обработки корневого URL
@@ -21,6 +22,7 @@ app.use('/resumes', resumesRoutes);
 app.use('/jobs', jobsRoutes);
 app.use('/adminApi', adminRoutes);
 app.use('/favorites', favoritesRoutes);
+app.use('/org', authOrgRoutes);
 app.use('/images', express.static('processed_images'));
 app.listen(3000, () => {
     console.log('Server is listening on port 3000');
