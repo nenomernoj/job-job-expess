@@ -53,7 +53,7 @@ router.post('/getOtp', (req, res) => {
         const sms_code = Math.floor(Math.random() * 9000) + 1000;
         const apiKey = 'kz0eeea0ff46739705065c0c7045f1edbf5d6a63ad5f58106936249e536af043c75037';
         const recipient = phone_number;
-        const message = 'Job Job, код регистрации : ' + sms_code;
+        const message = 'HR assistant, код регистрации : ' + sms_code;
         axios.post(`https://api.mobizon.kz/service/message/sendSmsMessage?output=json&api=v1&apiKey=${apiKey}`, {
             recipient: recipient, text: message,
         }, {
@@ -297,7 +297,7 @@ router.post('/requestPasswordReset', async (req, res) => {
         const sms_code = Math.floor(Math.random() * 9000) + 1000;
         const apiKey = 'kz0eeea0ff46739705065c0c7045f1edbf5d6a63ad5f58106936249e536af043c75037';
         const recipient = phone_number;
-        const message = 'Job Job - Ваш код для сброса пароля: ' + sms_code;
+        const message = 'HR assistant - Ваш код для сброса пароля: ' + sms_code;
         axios.post(`https://api.mobizon.kz/service/message/sendSmsMessage?output=json&api=v1&apiKey=${apiKey}`, {
             recipient: recipient, text: message,
         }, {
