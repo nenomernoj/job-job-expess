@@ -129,8 +129,8 @@ router.post('/login', (req, res) => {
             }
             delete user.Password;
             // Если аутентификация успешна, генерируем токены
-            const accessToken = jwt.sign({user}, JWT_SECRET, {expiresIn: '7d'});
-            const refreshToken = jwt.sign({userId: user.Id}, JWT_SECRET2, {expiresIn: '30d'});
+            const accessToken = jwt.sign({user}, JWT_SECRET, {expiresIn: '365d'});
+            const refreshToken = jwt.sign({userId: user.Id}, JWT_SECRET2, {expiresIn: '365d'});
 
             // Сохраняем refresh token в базе данных
             const insertQuery = 'INSERT INTO refresh_tokens (userId, token) VALUES (?, ?)';
