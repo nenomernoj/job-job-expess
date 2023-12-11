@@ -45,63 +45,68 @@ router.post('/add-to-favorites', async (req, res) => {
 router.get('/get-favorites', async (req, res) => {
     try {
         const token = req.headers.authorization.split(' ')[1];
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const userId = decoded.user.Id;
+        if(token.length < 20){
+            return res.status(400).json({ message: 'Auth error' })
+        } else {
 
-        const getFavoritesQuery = 'SELECT TargetId, Type FROM favorites WHERE UserId = ?';
-        connection.query(getFavoritesQuery, [userId], async (error, favoriteItems) => {
-            if (error) {
-                console.error(error);
-                return res.status(500).json({ message: 'Server error' });
-            }
 
-            const resumePromises = [];
-            const jobPromises = [];
-            favoriteItems.forEach(item => {
-                if(item.Type === 'r') {
-                    resumePromises.push(
-                        new Promise((resolve, reject) => {
-                            const getResumeQuery = `
+            const decoded = jwt.verify(token, JWT_SECRET);
+            const userId = decoded.user.Id;
+
+            const getFavoritesQuery = 'SELECT TargetId, Type FROM favorites WHERE UserId = ?';
+            connection.query(getFavoritesQuery, [userId], async (error, favoriteItems) => {
+                if (error) {
+                    console.error(error);
+                    return res.status(500).json({message: 'Server error'});
+                }
+
+                const resumePromises = [];
+                const jobPromises = [];
+                favoriteItems.forEach(item => {
+                    if (item.Type === 'r') {
+                        resumePromises.push(
+                            new Promise((resolve, reject) => {
+                                const getResumeQuery = `
                                 SELECT r.*, u.FullName, u.Email 
                                 FROM resumes r
                                 INNER JOIN users u ON r.UserId = u.Id
                                 WHERE r.Id = ?
                             `;
-                            connection.query(getResumeQuery, [item.TargetId], (err, results) => {
-                                if (err) {
-                                    reject(err);
-                                } else {
-                                    resolve({ ...item, resumeData: results[0] });
-                                }
-                            });
-                        })
-                    );
-                } else if(item.Type === 'j') {
-                    jobPromises.push(
-                        new Promise((resolve, reject) => {
-                            const getJobQuery = 'SELECT * FROM jobs WHERE Id = ?';
-                            connection.query(getJobQuery, [item.TargetId], (err, results) => {
-                                if (err) {
-                                    reject(err);
-                                } else {
-                                    resolve({ ...item, jobData: results[0] });
-                                }
-                            });
-                        })
-                    );
+                                connection.query(getResumeQuery, [item.TargetId], (err, results) => {
+                                    if (err) {
+                                        reject(err);
+                                    } else {
+                                        resolve({...item, resumeData: results[0]});
+                                    }
+                                });
+                            })
+                        );
+                    } else if (item.Type === 'j') {
+                        jobPromises.push(
+                            new Promise((resolve, reject) => {
+                                const getJobQuery = 'SELECT * FROM jobs WHERE Id = ?';
+                                connection.query(getJobQuery, [item.TargetId], (err, results) => {
+                                    if (err) {
+                                        reject(err);
+                                    } else {
+                                        resolve({...item, jobData: results[0]});
+                                    }
+                                });
+                            })
+                        );
+                    }
+                });
+
+                try {
+                    const resumes = await Promise.all(resumePromises);
+                    const jobs = await Promise.all(jobPromises);
+                    res.status(200).json([...resumes, ...jobs]);
+                } catch (err) {
+                    console.error(err);
+                    res.status(500).json({message: 'Server error during data retrieval'});
                 }
             });
-
-            try {
-                const resumes = await Promise.all(resumePromises);
-                const jobs = await Promise.all(jobPromises);
-                res.status(200).json([...resumes, ...jobs]);
-            } catch (err) {
-                console.error(err);
-                res.status(500).json({ message: 'Server error during data retrieval' });
-            }
-        });
-    } catch (error) {
+        }} catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
     }
