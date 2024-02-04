@@ -51,6 +51,38 @@ router.get('/jobs', (req, res) => {
         res.status(200).json(results);
     });
 });
+router.get('/jobs_paging', (req, res) => {
+    let selectQuery = 'SELECT * FROM jobs WHERE Status = 1';
+    const queryParams = [];
+
+    // Получаем параметры пагинации из запроса или используем значения по умолчанию
+    const page = parseInt(req.query.page, 10) || 1;
+    const pageSize = parseInt(req.query.pageSize, 10) || 10;
+
+    // Рассчитываем OFFSET для SQL запроса
+    const offset = (page - 1) * pageSize;
+
+    if (req.query.CityId) {
+        selectQuery += ' AND CityId = ?';
+        queryParams.push(req.query.CityId);
+    }
+
+    if (req.query.CategoryId) {
+        selectQuery += ' AND CategoryId = ?';
+        queryParams.push(req.query.CategoryId);
+    }
+
+    // Добавляем к запросу сортировку и пагинацию
+    selectQuery += ' ORDER BY Id DESC LIMIT ? OFFSET ?';
+    // Добавляем параметры пагинации в массив параметров запроса
+    queryParams.push(pageSize, offset);
+
+    connection.query(selectQuery, queryParams, (error, results) => {
+        if (error) return res.status(500).json({message: 'Server error', error});
+        res.status(200).json(results);
+    });
+});
+
 router.get('/jobsAll', (req, res) => {
     let selectQuery = 'SELECT * FROM jobs ORDER BY Id';
     connection.query(selectQuery, (error, results) => {
