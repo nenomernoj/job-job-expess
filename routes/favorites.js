@@ -52,11 +52,11 @@ router.get('/get-favorites', async (req, res) => {
 
             const decoded = jwt.verify(token, JWT_SECRET);
             const userId = decoded.user.Id;
-            const getFavoritesQuery = 'SELECT TargetId, Type FROM favorites WHERE UserId = ? ORDER BY id DESC';
+            const getFavoritesQuery = 'SELECT TargetId, Type FROM favorites WHERE UserId = ? ORDER BY TargetId DESC';
             connection.query(getFavoritesQuery, [userId], async (error, favoriteItems) => {
                 if (error) {
                     console.error(error);
-                    return res.status(500).json({message: 'Server error'});
+                    return res.status(500).json({message: 'Server error1'});
                 }
 
                 const resumePromises = [];
