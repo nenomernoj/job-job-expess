@@ -7,6 +7,8 @@ const router = express.Router();
 const {JWT_SECRET, JWT_SECRET2} = require('../config');
 router.post('/getOtp', (req, res) => {
     const {phone_number, sms_code} = req.body;
+    console.log('body: ', req.body);
+    console.log('phone: ', phone_number);
     if (!phone_number || phone_number.length !== 11 || !containsOnlyNumbers(phone_number)) {
         res.status(500).json({error: 'Неверный номер телефона'});
         return;
@@ -127,6 +129,159 @@ router.post('/registerOrganization', async (req, res) => {
         });
     } catch (error) {
         console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+router.post('/login', (req, res) => {
+    try {
+        const {phone_number, password} = req.body;
+        const query = 'SELECT * FROM organizations WHERE PhoneNumber = ?';
+        connection.query(query, [   phone_number], async (error, results) => {
+            if (error) {
+                res.status(500).json({message: 'Server error'});
+                return;
+            }
+
+            if (results.length === 0) {
+                res.status(401).json({message: 'Authentication failed1'});
+                return;
+            }
+
+            const org = results[0];
+            const passwordMatch = await bcrypt.compare(password, org.Password);
+
+            if (!passwordMatch) {
+                res.status(401).json({message: 'Authentication failed2'});
+                return;
+            }
+            delete org.Password;
+            // Если аутентификация успешна, генерируем токены
+            const accessToken = jwt.sign({org}, JWT_SECRET, {expiresIn: '365d'});
+            const refreshToken = jwt.sign({OrganizationId: org.Id}, JWT_SECRET2, {expiresIn: '365d'});
+
+            // Сохраняем refresh token в базе данных
+            const insertQuery = 'INSERT INTO refresh_tokens_org (OrganizationId, token) VALUES (?, ?)';
+            connection.query(insertQuery, [org.Id, refreshToken], (insertError) => {
+                if (insertError) {
+                    console.log(insertError);
+                    res.status(500).json({message: 'Server error during refresh token storage'});
+                    return;
+                }
+
+                res.status(200).json({accessToken, refreshToken});
+            });
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({message: 'Server error'});
+    }
+});
+router.get('/getAllResumes', async (req, res) => {
+    try {
+        const {categoryId, cityId} = req.query;
+
+        let sql = `
+            SELECT 
+                r.*, 
+                u.FullName, u.Email, u.CityId, u.PhoneNumber AS Phone, u.Photo,
+                GROUP_CONCAT(DISTINCT rc.CategoryId) AS categories,
+                GROUP_CONCAT(DISTINCT e.SchoolName, '|', e.Specialization, '|', e.GraduationYear) AS education,
+                GROUP_CONCAT(DISTINCT l.LanguageName, '|', l.ProficiencyLevel) AS languages,
+                GROUP_CONCAT(DISTINCT s.SkillName) AS skills,
+                GROUP_CONCAT(DISTINCT we.EmployerName, '|', we.Period, '|', we.Description) AS workExperience
+            FROM resumes r
+            INNER JOIN users u ON r.UserId = u.Id
+            LEFT JOIN resume_categories rc ON r.Id = rc.ResumeId
+            LEFT JOIN education e ON r.Id = e.ResumeId
+            LEFT JOIN languages l ON r.Id = l.ResumeId
+            LEFT JOIN skills s ON r.Id = s.ResumeId
+            LEFT JOIN workexperience we ON r.Id = we.ResumeId
+        `;
+
+        const values = [];
+        if (categoryId) {
+            sql += ' WHERE rc.CategoryId = ?';
+            values.push(categoryId);
+        }
+
+        if (cityId) {
+            if (values.length) {
+                sql += ' AND u.CityId = ?';
+            } else {
+                sql += ' WHERE u.CityId = ?';
+            }
+            values.push(cityId);
+        }
+
+        sql += ' GROUP BY r.Id ORDER BY r.Id DESC';
+
+        connection.query(sql, values, (error, results) => {
+            if (error) {
+                console.error(error);
+                return res.status(500).json({message: 'Server error'});
+            }
+
+            const detailedResumes = results.map(resume => ({
+                ...resume,
+                categories: resume.categories ? resume.categories.split(',') : [],
+                education: resume.education ? resume.education.split(',').map(e => {
+                    const [SchoolName, Specialization, GraduationYear] = e.split('|');
+                    return {SchoolName, Specialization, GraduationYear};
+                }) : [],
+                languages: resume.languages ? resume.languages.split(',').map(l => {
+                    const [LanguageName, ProficiencyLevel] = l.split('|');
+                    return {LanguageName, ProficiencyLevel};
+                }) : [],
+                skills: resume.skills ? resume.skills.split(',') : [],
+                workExperience: resume.workExperience ? resume.workExperience.split(',').map(we => {
+                    const [EmployerName, Period, Description] = we.split('|');
+                    return {EmployerName, Period, Description};
+                }) : []
+            }));
+
+            res.status(200).json(detailedResumes);
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({message: 'Server error'});
+    }
+});
+
+router.put('/updateOrganization', async (req, res) => {
+    try {
+        const token = req.headers.authorization.split(' ')[1]; // Получаем токен из заголовк
+        const decoded = jwt.verify(token, JWT_SECRET);
+        console.log(decoded);
+        const organizationId = decoded.org.Id; // Получаем ID организации из токена
+        console.log(decoded);
+
+        if (!organizationId) {
+            return res.status(401).json({ message: 'Invalid or expired token' });
+        }
+
+        const { companyName, whatsAppNumber, email, fullName } = req.body;
+
+        // Подготовка запроса на обновление данных организации
+        const updateQuery = `
+            UPDATE organizations 
+            SET CompanyName = ?, WhatsAppNumber = ?, Email = ?, FullName = ?
+            WHERE Id = ?
+        `;
+        const queryParams = [companyName, whatsAppNumber, email, fullName, organizationId];
+
+        // Выполнение запроса на обновление
+        connection.query(updateQuery, queryParams, (error, results) => {
+            if (error) {
+                console.error('Error updating organization:', error);
+                return res.status(500).json({ message: 'Error updating organization' });
+            }
+            if (results.affectedRows === 0) {
+                return res.status(404).json({ message: 'Organization not found' });
+            }
+            res.status(200).json({ message: 'Organization updated successfully' });
+        });
+    } catch (error) {
+        console.error('Server error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
