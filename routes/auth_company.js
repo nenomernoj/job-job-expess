@@ -88,7 +88,7 @@ router.post('/getOtp', (req, res) => {
 // Регистрация пользователя
 router.post('/registerOrganization', async (req, res) => {
     try {
-        const { phoneNumber, password, companyName, fullName, whatsAppNumber, email, smsCode } = req.body;
+        const {phoneNumber, password, companyName, fullName, whatsAppNumber, email, smsCode} = req.body;
 
         // Проверка наличия SMS-кода в базе данных
         const checkSMSCode = 'SELECT * FROM smsverification WHERE phone_number = ? AND sms_code = ?';
@@ -120,7 +120,7 @@ router.post('/registerOrganization', async (req, res) => {
                             console.error('Ошибка при удалении SMS-кода: ' + err.message);
                         }
                         // Возвращаем успешный ответ
-                        res.status(200).json({ message: 'Организация успешно зарегистрирована' });
+                        res.status(200).json({message: 'Организация успешно зарегистрирована'});
                     });
                 });
             } else {
@@ -129,14 +129,14 @@ router.post('/registerOrganization', async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({message: 'Server error'});
     }
 });
 router.post('/login', (req, res) => {
     try {
         const {phone_number, password} = req.body;
         const query = 'SELECT * FROM organizations WHERE PhoneNumber = ?';
-        connection.query(query, [   phone_number], async (error, results) => {
+        connection.query(query, [phone_number], async (error, results) => {
             if (error) {
                 res.status(500).json({message: 'Server error'});
                 return;
@@ -251,15 +251,13 @@ router.put('/updateOrganization', async (req, res) => {
     try {
         const token = req.headers.authorization.split(' ')[1]; // Получаем токен из заголовк
         const decoded = jwt.verify(token, JWT_SECRET);
-        console.log(decoded);
         const organizationId = decoded.org.Id; // Получаем ID организации из токена
-        console.log(decoded);
 
         if (!organizationId) {
-            return res.status(401).json({ message: 'Invalid or expired token' });
+            return res.status(401).json({message: 'Invalid or expired token'});
         }
 
-        const { companyName, whatsAppNumber, email, fullName } = req.body;
+        const {companyName, whatsAppNumber, email, fullName} = req.body;
 
         // Подготовка запроса на обновление данных организации
         const updateQuery = `
@@ -273,17 +271,88 @@ router.put('/updateOrganization', async (req, res) => {
         connection.query(updateQuery, queryParams, (error, results) => {
             if (error) {
                 console.error('Error updating organization:', error);
-                return res.status(500).json({ message: 'Error updating organization' });
+                return res.status(500).json({message: 'Error updating organization'});
             }
             if (results.affectedRows === 0) {
-                return res.status(404).json({ message: 'Organization not found' });
+                return res.status(404).json({message: 'Organization not found'});
             }
-            res.status(200).json({ message: 'Organization updated successfully' });
+            res.status(200).json({message: 'Organization updated successfully'});
         });
     } catch (error) {
         console.error('Server error:', error);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({message: 'Server error'});
     }
+});
+router.post('/refresh', (req, res) => {
+    const {refreshToken} = req.body;
+
+    if (!refreshToken) {
+        return res.status(401).json({message: 'Refresh token is required'});
+    }
+
+    // Проверяем refreshToken в базе данных
+    const refreshTokenQuery = 'SELECT OrganizationId FROM refresh_tokens_org WHERE token = ?';
+    connection.query(refreshTokenQuery, [refreshToken], (error, tokens) => {
+        if (error || tokens.length === 0) {
+            return res.status(403).json({message: 'Invalid refresh token'});
+        }
+
+        const {OrganizationId} = tokens[0];
+
+        try {
+            // Проверяем валидность refreshToken
+            jwt.verify(refreshToken, JWT_SECRET2);
+
+            // Получаем данные организации для включения в accessToken
+            const orgQuery = 'SELECT * FROM organizations WHERE Id = ?';
+            connection.query(orgQuery, [OrganizationId], (orgError, orgResults) => {
+                if (orgError || orgResults.length === 0) {
+                    return res.status(500).json({message: 'Organization not found'});
+                }
+
+                const orgData = orgResults[0];
+
+                // Генерируем новый accessToken с данными организации
+                const accessToken = jwt.sign({
+                    org: {
+                        Id: OrganizationId,
+                        CompanyName: orgData.CompanyName,
+                        Email: orgData.Email,
+                        PhoneNumber: orgData.PhoneNumber,
+                        WhatsAppNumber: orgData.WhatsAppNumber,
+                        FullName: orgData.FullName
+                    }
+                }, JWT_SECRET, {expiresIn: '365d'});
+
+                // Генерируем новый refreshToken
+                const newRefreshToken = jwt.sign({OrganizationId: OrganizationId}, JWT_SECRET2, {expiresIn: '365d'});
+
+                // Удаляем старый refreshToken из базы данных
+                const deleteOldRefreshTokenQuery = 'DELETE FROM refresh_tokens_org WHERE token = ?';
+                connection.query(deleteOldRefreshTokenQuery, [refreshToken], (deleteError) => {
+                    if (deleteError) {
+                        return res.status(500).json({message: 'Error deleting old refresh token'});
+                    }
+
+                    // Сохраняем новый refreshToken в базе данных
+                    const insertNewRefreshTokenQuery = 'INSERT INTO refresh_tokens_org (OrganizationId, token) VALUES (?, ?)';
+                    connection.query(insertNewRefreshTokenQuery, [OrganizationId, newRefreshToken], (insertError) => {
+                        if (insertError) {
+                            return res.status(500).json({message: 'Error creating new refresh token'});
+                        }
+
+                        // Возвращаем новые токены
+                        res.status(200).json({
+                            accessToken,
+                            refreshToken: newRefreshToken
+                        });
+                    });
+                });
+            });
+        } catch (err) {
+            return res.status(403).json({message: 'Invalid or expired refresh token'});
+        }
+    });
 });
 
 module.exports = router;
