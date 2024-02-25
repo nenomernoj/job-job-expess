@@ -246,6 +246,104 @@ router.get('/getAllResumes', async (req, res) => {
         res.status(500).json({message: 'Server error'});
     }
 });
+router.get('/getAllResumesByOrg', async (req, res) => {
+    try {
+        const { categoryId, cityId, companyId } = req.query;
+
+        // Шаг 1: Извлекаем все связанные категории для companyId
+        const categoryQuery = `
+            SELECT CategoryId FROM OrganizationCategories WHERE CompanyId = ?
+        `;
+        const categoryIds = await new Promise((resolve, reject) => {
+            connection.query(categoryQuery, [companyId], (error, results) => {
+                if (error) {
+                    return reject(error);
+                }
+                // Возвращаем массив ID категорий
+                const ids = results.map(row => row.CategoryId);
+                resolve(ids);
+            });
+        });
+
+        // Шаг 2: Формируем основной запрос с условием фильтрации по городу и/или категории
+        let sql = `
+            SELECT 
+                r.*, 
+                u.FullName, u.Email, u.CityId, u.PhoneNumber AS Phone, u.Photo,
+                GROUP_CONCAT(DISTINCT rc.CategoryId ORDER BY rc.CategoryId) AS categories,
+                GROUP_CONCAT(DISTINCT CONCAT(e.SchoolName, '|', e.Specialization, '|', e.GraduationYear) ORDER BY e.Id) AS education,
+                GROUP_CONCAT(DISTINCT CONCAT(l.LanguageName, '|', l.ProficiencyLevel) ORDER BY l.Id) AS languages,
+                GROUP_CONCAT(DISTINCT s.SkillName ORDER BY s.Id) AS skills,
+                GROUP_CONCAT(DISTINCT CONCAT(we.EmployerName, '|', we.Period, '|', we.Description) ORDER BY we.Id) AS workExperience
+            FROM resumes r
+            INNER JOIN users u ON r.UserId = u.Id
+            LEFT JOIN resume_categories rc ON r.Id = rc.ResumeId
+            LEFT JOIN education e ON r.Id = e.ResumeId
+            LEFT JOIN languages l ON r.Id = l.ResumeId
+            LEFT JOIN skills s ON r.Id = s.ResumeId
+            LEFT JOIN workexperience we ON r.Id = we.ResumeId
+        `;
+
+        const values = [];
+        let whereConditions = [];
+
+        if (categoryId) {
+            whereConditions.push("rc.CategoryId = ?");
+            values.push(categoryId);
+        }
+
+        if (cityId) {
+            whereConditions.push("u.CityId = ?");
+            values.push(cityId);
+        }
+
+        if (whereConditions.length) {
+            sql += " WHERE " + whereConditions.join(" AND ");
+        }
+
+        sql += " GROUP BY r.Id ORDER BY r.Id DESC";
+
+        // Шаг 3: Выполняем запрос и фильтруем результаты
+        connection.query(sql, values, (error, results) => {
+            if (error) {
+                console.error(error);
+                return res.status(500).json({ message: 'Server error' });
+            }
+
+            // Фильтрация резюме на основе связанных категорий
+            const detailedResumes = results.map(resume => {
+                const resumeCategories = resume.categories ? resume.categories.split(',') : [];
+                const hasLinkedCategory = resumeCategories.some(catId => categoryIds.includes(parseInt(catId)));
+
+                return {
+                    ...resume,
+                    Email: hasLinkedCategory ? resume.Email : '',
+                    Phone: hasLinkedCategory ? resume.Phone : '',
+                    categories: resume.categories ? resume.categories.split(',') : [],
+                    education: resume.education ? resume.education.split(',').map(e => {
+                        const [SchoolName, Specialization, GraduationYear] = e.split('|');
+                        return {SchoolName, Specialization, GraduationYear};
+                    }) : [],
+                    languages: resume.languages ? resume.languages.split(',').map(l => {
+                        const [LanguageName, ProficiencyLevel] = l.split('|');
+                        return {LanguageName, ProficiencyLevel};
+                    }) : [],
+                    skills: resume.skills ? resume.skills.split(',') : [],
+                    workExperience: resume.workExperience ? resume.workExperience.split(',').map(we => {
+                        const [EmployerName, Period, Description] = we.split('|');
+                        return {EmployerName, Period, Description};
+                    }) : []
+                    // Преобразуем остальные данные аналогично
+                };
+            });
+
+            res.status(200).json(detailedResumes);
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
 
 router.put('/updateOrganization', async (req, res) => {
     try {

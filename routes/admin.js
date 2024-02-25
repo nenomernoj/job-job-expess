@@ -724,4 +724,54 @@ router.delete('/categoryDel/:id', async (req, res) => {
         res.status(500).json({message: 'Server error'});
     }
 });
+
+
+router.post('/addOrgCat', (req, res) => {
+    const {CategoryId, CompanyId, EndDate} = req.body;
+    const query = `
+        INSERT INTO OrganizationCategories (CategoryId, CompanyId, EndDate) 
+        VALUES (?, ?, ?)
+    `;
+
+    connection.query(query, [CategoryId, CompanyId, EndDate || null], (error, results) => {
+        if (error) {
+            console.error('Error adding organization category:', error);
+            return res.status(500).json({message: 'Error adding organization category'});
+        }
+        res.status(201).json({message: 'Organization category added successfully', id: results.insertId});
+    });
+});
+
+router.get('/getOrgsCats', (req, res) => {
+    const query = `
+        SELECT oc.Id, oc.CategoryId, oc.CompanyId, oc.EndDate, c.Name AS CategoryName, o.CompanyName
+        FROM OrganizationCategories oc
+        JOIN categories c ON oc.CategoryId = c.Id
+        JOIN organizations o ON oc.CompanyId = o.Id
+    `;
+
+    connection.query(query, (error, results) => {
+        if (error) {
+            console.error('Error fetching organization categories:', error);
+            return res.status(500).json({message: 'Error fetching organization categories'});
+        }
+        res.status(200).json(results);
+    });
+});
+
+router.delete('/deleteOrgCat/:id', (req, res) => {
+    const {id} = req.params;
+    const sql = `DELETE FROM OrganizationCategories WHERE Id = ?`;
+    connection.query(sql, [id], (error, results) => {
+        if (error) {
+            console.error('Ошибка при удалении связи:', error);
+            return res.status(500).json({message: 'Ошибка при удалении связи'});
+        }
+        if (results.affectedRows === 0) {
+            return res.status(404).json({message: 'Связь не найдена'});
+        }
+        res.status(200).json({message: 'Связь успешно удалена'});
+    });
+});
+
 module.exports = router;
