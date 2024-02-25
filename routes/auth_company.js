@@ -248,7 +248,13 @@ router.get('/getAllResumes', async (req, res) => {
 });
 router.get('/getAllResumesByOrg', async (req, res) => {
     try {
-        const { categoryId, cityId, companyId } = req.query;
+        const {categoryId, cityId} = req.query;
+        let companyId = 0;
+        const token = req.headers.authorization.split(' ')[1]; // Получаем токен из заголовк
+        if (token) {
+            const decoded = jwt.verify(token, JWT_SECRET);
+            companyId = decoded.org.Id; // Получаем ID организации из токена
+        }
 
         // Шаг 1: Извлекаем все связанные категории для companyId
         const categoryQuery = `
@@ -269,7 +275,7 @@ router.get('/getAllResumesByOrg', async (req, res) => {
         let sql = `
             SELECT 
                 r.*, 
-                u.FullName, u.Email, u.CityId, u.PhoneNumber AS Phone, u.Photo,
+                u.FullName, u.Email, u.CityId, u.PhoneNumber AS Phone, u.Photo,u.Gender,u.Birthdate,
                 GROUP_CONCAT(DISTINCT rc.CategoryId ORDER BY rc.CategoryId) AS categories,
                 GROUP_CONCAT(DISTINCT CONCAT(e.SchoolName, '|', e.Specialization, '|', e.GraduationYear) ORDER BY e.Id) AS education,
                 GROUP_CONCAT(DISTINCT CONCAT(l.LanguageName, '|', l.ProficiencyLevel) ORDER BY l.Id) AS languages,
@@ -307,7 +313,7 @@ router.get('/getAllResumesByOrg', async (req, res) => {
         connection.query(sql, values, (error, results) => {
             if (error) {
                 console.error(error);
-                return res.status(500).json({ message: 'Server error' });
+                return res.status(500).json({message: 'Server error'});
             }
 
             // Фильтрация резюме на основе связанных категорий
@@ -341,7 +347,7 @@ router.get('/getAllResumesByOrg', async (req, res) => {
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({message: 'Server error'});
     }
 });
 

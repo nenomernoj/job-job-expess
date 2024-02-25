@@ -774,4 +774,15 @@ router.delete('/deleteOrgCat/:id', (req, res) => {
     });
 });
 
+router.get('/getOrgsList', (req, res) => {
+    const sql = 'SELECT * FROM organizations';
+    connection.query(sql, (error, results) => {
+        if (error) {
+            console.error('Ошибка при получении списка организаций:', error);
+            res.status(500).json({ message: 'Ошибка при получении списка организаций' });
+            return;
+        }
+        res.json(results);
+    });
+});
 module.exports = router;
