@@ -873,7 +873,7 @@ router.delete('/candidates/:id', (req, res) => {
     });
 });
 
-router.post('/upload-candidate-image/:id', upload.single('profileImage'), async (req, res) => {
+router.post('/upload-candidate-image/:id', upload.single('file'), async (req, res) => {
     try {
         // 1. Проверяем и верифицируем токен
         const authHeader = req.headers.authorization;
@@ -924,7 +924,7 @@ router.post('/upload-candidate-image/:id', upload.single('profileImage'), async 
                     return;
                 }
 
-                if (results[0].photo) {
+                if (results[0] && results[0].photo) {
                     const oldImagePath = results[0].photo;  // предполагаем, что это полный URL
                     const oldImageFileName = oldImagePath.split('/').pop();  // извлекаем имя файла из URL
 
@@ -937,7 +937,7 @@ router.post('/upload-candidate-image/:id', upload.single('profileImage'), async 
                     });
                 }
 
-                const updateQuery = 'UPDATE users SET photo = ? WHERE id = ?';
+                const updateQuery = 'UPDATE candidates SET photo = ? WHERE id = ?';
                 connection.query(updateQuery, [fullImageUrl, userId], (error) => {
                     if (error) {
                         return res.status(500).json({message: 'Error updating user photo'});
