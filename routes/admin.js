@@ -5,7 +5,11 @@ const {JWT_SECRET} = require("../config");
 const router = express.Router();
 // Транспорт для nodemailer
 const allowedPhones = ['77078528400', '77068180777', '77711737021'];
-const connection = require('../db');  // Подключите вашу конфигурацию MySQL
+const connection = require('../db');
+const sharp = require("sharp");
+const fs = require("fs");
+const multer = require("multer");  // Подключите вашу конфигурацию MySQL
+const upload = multer({dest: 'uploads/'});
 router.post('/addUser', async (req, res) => {
     try {
         // 1. Авторизация по токену
@@ -779,10 +783,350 @@ router.get('/getOrgsList', (req, res) => {
     connection.query(sql, (error, results) => {
         if (error) {
             console.error('Ошибка при получении списка организаций:', error);
-            res.status(500).json({ message: 'Ошибка при получении списка организаций' });
+            res.status(500).json({message: 'Ошибка при получении списка организаций'});
             return;
         }
         res.json(results);
     });
 });
+
+router.get('/candidates', (req, res) => {
+    const sql = 'SELECT * FROM candidates';
+    connection.query(sql, (error, results) => {
+        if (error) {
+            console.error('Ошибка при получении списка кандидатов:', error);
+            res.status(500).json({message: 'Ошибка при получении списка кандидатов'});
+            return;
+        }
+        res.json(results);
+    });
+});
+router.post('/candidates', (req, res) => {
+    const {
+        fullName,
+        phone,
+        email,
+        cityId,
+        birthDate,
+        photo,
+        position,
+        categoryId,
+        comment,
+        aboutMe,
+        workExperienceYears,
+        additionalInfo
+    } = req.body;
+    const sql = 'INSERT INTO candidates (fullName, phone, email, cityId, birthDate, photo, position, categoryId, comment, aboutMe, workExperienceYears, additionalInfo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    connection.query(sql, [fullName, phone, email, cityId, birthDate, photo, position, categoryId, comment, aboutMe, workExperienceYears, additionalInfo], (error, results) => {
+        if (error) {
+            console.error('Ошибка при создании кандидата:', error);
+            res.status(500).json({message: 'Ошибка при создании кандидата'});
+            return;
+        }
+        res.status(201).json({message: 'Кандидат успешно создан', id: results.insertId});
+    });
+});
+router.put('/candidates/:id', (req, res) => {
+    const {
+        fullName,
+        phone,
+        email,
+        cityId,
+        birthDate,
+        photo,
+        position,
+        categoryId,
+        comment,
+        aboutMe,
+        workExperienceYears,
+        additionalInfo
+    } = req.body;
+    const {id} = req.params;
+    const sql = 'UPDATE candidates SET fullName = ?, phone = ?, email = ?, cityId = ?, birthDate = ?, photo = ?, position = ?, categoryId = ?, comment = ?, aboutMe = ?, workExperienceYears = ?, additionalInfo = ? WHERE id = ?';
+    connection.query(sql, [fullName, phone, email, cityId, birthDate, photo, position, categoryId, comment, aboutMe, workExperienceYears, additionalInfo, id], (error, results) => {
+        if (error) {
+            console.error('Ошибка при редактировании кандидата:', error);
+            res.status(500).json({message: 'Ошибка при редактировании кандидата'});
+            return;
+        }
+        if (results.affectedRows === 0) {
+            res.status(404).json({message: 'Кандидат не найден'});
+            return;
+        }
+        res.json({message: 'Кандидат успешно обновлен'});
+    });
+});
+router.delete('/candidates/:id', (req, res) => {
+    const {id} = req.params;
+    const sql = 'DELETE FROM candidates WHERE id = ?';
+    connection.query(sql, [id], (error, results) => {
+        if (error) {
+            console.error('Ошибка при удалении кандидата:', error);
+            res.status(500).json({message: 'Ошибка при удалении кандидата'});
+            return;
+        }
+        if (results.affectedRows === 0) {
+            res.status(404).json({message: 'Кандидат не найден'});
+            return;
+        }
+        res.json({message: 'Кандидат успешно удален'});
+    });
+});
+
+router.post('/upload-candidate-image/:id', upload.single('profileImage'), async (req, res) => {
+    try {
+        // 1. Проверяем и верифицируем токен
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(401).json({message: 'Authorization header is missing'});
+        }
+
+        const token = authHeader.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({message: 'Token is missing'});
+        }
+
+        jwt.verify(token, JWT_SECRET, async (err, decoded) => {
+            if (err) {
+                return res.status(403).json({message: 'Invalid token'});
+            }
+            const {id} = req.params;
+            const userId = id;
+
+            // 2. Обработка и сохранение изображения
+            const processedImageBuffer = await sharp(req.file.path)
+                .resize(400, 400, {
+                    fit: 'cover',
+                    position: 'center'
+                })
+                .toBuffer();
+            // Путь для сохранения изображения на сервере
+            const imageName = `${req.file.filename}.jpg`;
+            const localImagePath = `processed_images/${imageName}`;
+            await sharp(processedImageBuffer).toFile(localImagePath);
+
+            // Полный путь для доступа к изображению через веб
+            const baseImageUrl = 'https://api.bashunter.kz/images/';
+            const fullImageUrl = baseImageUrl + imageName;
+            fs.unlink(req.file.path, err => {
+                if (err) {
+                    console.error('Error while deleting the temporary file:', err);
+                } else {
+                    console.log('Temporary file deleted successfully');
+                }
+            });
+            // Обновление пути изображения в базе данных для пользователя
+
+            const oldImageQuery = 'SELECT photo FROM candidates WHERE id = ?';
+            connection.query(oldImageQuery, [userId], (error, results) => {
+                if (error) {
+                    console.error('Error fetching old image path:', error);
+                    return;
+                }
+
+                if (results[0].photo) {
+                    const oldImagePath = results[0].photo;  // предполагаем, что это полный URL
+                    const oldImageFileName = oldImagePath.split('/').pop();  // извлекаем имя файла из URL
+
+                    fs.unlink(`processed_images/${oldImageFileName}`, err => {
+                        if (err) {
+                            console.error('Error while deleting the old profile image:', err);
+                        } else {
+                            console.log('Old profile image deleted successfully');
+                        }
+                    });
+                }
+
+                const updateQuery = 'UPDATE users SET photo = ? WHERE id = ?';
+                connection.query(updateQuery, [fullImageUrl, userId], (error) => {
+                    if (error) {
+                        return res.status(500).json({message: 'Error updating user photo'});
+                    }
+
+                    res.status(200).json({message: 'Profile image updated successfully', imagePath: fullImageUrl});
+                });
+            });
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({message: 'Server error'});
+    }
+});
+router.get('/candidate/:id', async (req, res) => {
+    const { id } = req.params;
+
+    // Запрос данных кандидата
+    const candidateQuery = 'SELECT * FROM candidates WHERE id = ?';
+
+    // Запрос опыта работы кандидата
+    const experienceQuery = 'SELECT * FROM work_experience WHERE candidateId = ?';
+
+    // Запрос образования кандидата
+    const educationQuery = 'SELECT * FROM work_education WHERE candidateId = ?';
+
+    // Запрос навыков кандидата
+    const skillsQuery = 'SELECT * FROM work_skills WHERE candidateId = ?';
+
+    try {
+        // Получаем основные данные кандидата
+        connection.query(candidateQuery, [id], (err, candidateResults) => {
+            if (err) {
+                console.error('Error fetching candidate:', err);
+                return res.status(500).json({ message: 'Error fetching candidate' });
+            }
+
+            if (candidateResults.length === 0) {
+                return res.status(404).json({ message: 'Candidate not found' });
+            }
+
+            const candidate = candidateResults[0];
+
+            // Получаем опыт работы
+            connection.query(experienceQuery, [id], (err, experienceResults) => {
+                if (err) {
+                    console.error('Error fetching work experience:', err);
+                    return res.status(500).json({ message: 'Error fetching work experience' });
+                }
+
+                // Получаем образование
+                connection.query(educationQuery, [id], (err, educationResults) => {
+                    if (err) {
+                        console.error('Error fetching education:', err);
+                        return res.status(500).json({ message: 'Error fetching education' });
+                    }
+
+                    // Получаем навыки
+                    connection.query(skillsQuery, [id], (err, skillsResults) => {
+                        if (err) {
+                            console.error('Error fetching skills:', err);
+                            return res.status(500).json({ message: 'Error fetching skills' });
+                        }
+
+                        // Формируем и отправляем итоговый ответ
+                        const response = {
+                            candidate,
+                            experience: experienceResults,
+                            education: educationResults,
+                            skills: skillsResults // Пример обработки навыков
+                        };
+
+                        res.json(response);
+                    });
+                });
+            });
+        });
+    } catch (error) {
+        console.error('Server error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
+router.post('/candidate/:id/work_experience', (req, res) => {
+    const { id } = req.params;
+    const { companyName, position, period, description } = req.body;
+
+    const sql = 'INSERT INTO work_experience (companyName, position, period, description, candidateId) VALUES (?, ?, ?, ?, ?)';
+
+    connection.query(sql, [companyName, position, period, description, id], (error, results) => {
+        if (error) {
+            console.error('Ошибка при добавлении опыта работы:', error);
+            res.status(500).json({ message: 'Ошибка при добавлении опыта работы' });
+            return;
+        }
+        res.status(201).json({ message: 'Опыт работы успешно добавлен', workExperienceId: results.insertId });
+    });
+});
+
+router.delete('/work_experience/:workExperienceId', (req, res) => {
+    const { workExperienceId } = req.params;
+
+    const sql = 'DELETE FROM work_experience WHERE id = ?';
+
+    connection.query(sql, [workExperienceId], (error, results) => {
+        if (error) {
+            console.error('Ошибка при удалении опыта работы:', error);
+            res.status(500).json({ message: 'Ошибка при удалении опыта работы' });
+            return;
+        }
+        if (results.affectedRows === 0) {
+            res.status(404).json({ message: 'Запись опыта работы не найдена' });
+            return;
+        }
+        res.json({ message: 'Опыт работы успешно удален' });
+    });
+});
+
+router.post('/candidate/:id/education', (req, res) => {
+    const { id } = req.params;
+    const { name, period, description } = req.body;
+
+    const sql = 'INSERT INTO work_education (schoolname, period, description, candidateId) VALUES (?, ?, ?, ?)';
+
+    connection.query(sql, [name, period, description, id], (error, results) => {
+        if (error) {
+            console.error('Ошибка при добавлении записи об образовании:', error);
+            res.status(500).json({ message: 'Ошибка при добавлении записи об образовании' });
+            return;
+        }
+        res.status(201).json({ message: 'Запись об образовании успешно добавлена', educationId: results.insertId });
+    });
+});
+
+router.delete('/educationWork/:educationId', (req, res) => {
+    const { educationId } = req.params;
+
+    const sql = 'DELETE FROM work_education WHERE id = ?';
+
+    connection.query(sql, [educationId], (error, results) => {
+        if (error) {
+            console.error('Ошибка при удалении записи об образовании:', error);
+            res.status(500).json({ message: 'Ошибка при удалении записи об образовании' });
+            return;
+        }
+        if (results.affectedRows === 0) {
+            res.status(404).json({ message: 'Запись об образовании не найдена' });
+            return;
+        }
+        res.json({ message: 'Запись об образовании успешно удалена' });
+    });
+});
+
+router.post('/candidate/:id/key_skills', (req, res) => {
+    const { id } = req.params;
+    const { skills } = req.body; // Предполагаем, что навыки передаются как строка
+
+    const sql = 'INSERT INTO work_skills (candidateId, skills) VALUES (?, ?)';
+
+    connection.query(sql, [id, skills], (error, results) => {
+        if (error) {
+            console.error('Ошибка при добавлении ключевых навыков:', error);
+            res.status(500).json({ message: 'Ошибка при добавлении ключевых навыков' });
+            return;
+        }
+        res.status(201).json({ message: 'Ключевые навыки успешно добавлены', keySkillId: results.insertId });
+    });
+});
+
+router.delete('/key_skills/:keySkillId', (req, res) => {
+    const { keySkillId } = req.params;
+
+    const sql = 'DELETE FROM work_skills WHERE id = ?';
+
+    connection.query(sql, [keySkillId], (error, results) => {
+        if (error) {
+            console.error('Ошибка при удалении ключевых навыков:', error);
+            res.status(500).json({ message: 'Ошибка при удалении ключевых навыков' });
+            return;
+        }
+        if (results.affectedRows === 0) {
+            res.status(404).json({ message: 'Запись ключевых навыков не найдена' });
+            return;
+        }
+        res.json({ message: 'Ключевые навыки успешно удалены' });
+    });
+});
+
+
+
 module.exports = router;
