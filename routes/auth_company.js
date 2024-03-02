@@ -351,6 +351,78 @@ router.get('/getAllResumesByOrg', async (req, res) => {
     }
 });
 
+router.get('/getAllCandidates', async (req, res) => {
+    try {
+        // Предполагается, что companyId извлекается из токена аутентификации
+        let companyId = 0;
+        const token = req.headers.authorization.split(' ')[1]; // Получаем токен из заголовк
+        if (token) {
+            const decoded = jwt.verify(token, JWT_SECRET);
+            companyId = decoded.org.Id; // Получаем ID организации из токена
+        }
+        const {categoryId, cityId} = req.query;
+
+        let sql = `
+            SELECT 
+                c.id, c.fullName, c.position, c.cityId, c.birthDate, c.photo, 
+                c.categoryId, c.comment, c.aboutMe, c.workExperienceYears, c.additionalInfo,
+                IF(oc.CompanyId IS NULL, '', c.email) AS email, 
+                IF(oc.CompanyId IS NULL, '', c.phone) AS phone,
+                (SELECT GROUP_CONCAT(CONCAT(we.companyName, '|', we.position, '|', we.period, '|', we.description) SEPARATOR ';') 
+                    FROM work_experience we WHERE we.candidateId = c.id) AS workExperience,
+                (SELECT GROUP_CONCAT(CONCAT(e.schoolName, '|', e.period, '|', e.description) SEPARATOR ';') 
+                    FROM work_education e WHERE e.candidateId = c.id) AS education,
+                (SELECT GROUP_CONCAT(s.skills SEPARATOR ';') 
+                    FROM work_skills s WHERE s.candidateId = c.id) AS skills
+            FROM candidates c
+            LEFT JOIN OrganizationCategories oc ON c.categoryId = oc.CategoryId AND oc.CompanyId = ?
+        `;
+
+
+        const whereConditions = [];
+        const values = [companyId];
+
+        if (categoryId) {
+            whereConditions.push("c.categoryId = ?");
+            values.push(categoryId);
+        }
+
+        if (cityId) {
+            whereConditions.push("c.cityId = ?");
+            values.push(cityId);
+        }
+
+        if (whereConditions.length > 0) {
+            sql += " WHERE " + whereConditions.join(" AND ");
+        }
+
+        connection.query(sql, values, (error, results) => {
+            if (error) {
+                console.error('Ошибка при получении списка кандидатов:', error);
+                return res.status(500).json({message: 'Ошибка при получении списка кандидатов'});
+            }
+
+            const candidates = results.map(candidate => ({
+                ...candidate,
+                workExperience: candidate.workExperience ? candidate.workExperience.split(';').map(item => {
+                    const [companyName, position, period, description] = item.split('|');
+                    return {companyName, position, period, description};
+                }) : [],
+                education: candidate.education ? candidate.education.split(';').map(item => {
+                    const [schoolName, period, description] = item.split('|');
+                    return {schoolName, period, description};
+                }) : [],
+                skills: candidate.skills ? candidate.skills.split(';') : [],
+            }));
+
+            res.json(candidates);
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({message: 'Server error'});
+    }
+});
+
 router.put('/updateOrganization', async (req, res) => {
     try {
         const token = req.headers.authorization.split(' ')[1]; // Получаем токен из заголовк
