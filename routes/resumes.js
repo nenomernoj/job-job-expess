@@ -636,6 +636,30 @@ router.get('/category', (req, res) => {
         res.status(200).json(results);
     });
 });
+
+router.post('/categorySwitch', (req, res) => {
+    const { id, active } = req.body; // Получаем новое значение active из тела запроса
+
+    // Проверяем, что active является boolean значением
+    if (typeof active !== 'boolean') {
+        return res.status(400).json({ message: 'Invalid active status' });
+    }
+
+    const sql = 'UPDATE categories SET active = ? WHERE id = ?';
+
+    connection.query(sql, [active, id], (error, result) => {
+        if (error) {
+            console.error('Ошибка при обновлении статуса категории:', error);
+            return res.status(500).json({ message: 'Ошибка при обновлении статуса категории' });
+        }
+        if (result.affectedRows === 0) {
+            // Нет категории с таким ID
+            return res.status(404).json({ message: 'Категория не найдена' });
+        }
+        res.json({ message: 'Статус категории успешно обновлен' });
+    });
+});
+
 router.delete('/categoryDelete/:id', async (req, res) => {
     try {
         const token = req.headers.authorization.split(' ')[1];
