@@ -833,7 +833,6 @@ router.put('/candidates/:id', (req, res) => {
         email,
         cityId,
         birthDate,
-        photo,
         position,
         categoryId,
         comment,
@@ -843,7 +842,7 @@ router.put('/candidates/:id', (req, res) => {
     } = req.body;
     const {id} = req.params;
     const sql = 'UPDATE candidates SET fullName = ?, phone = ?, email = ?, cityId = ?, birthDate = ?, photo = ?, position = ?, categoryId = ?, comment = ?, aboutMe = ?, workExperienceYears = ?, additionalInfo = ? WHERE id = ?';
-    connection.query(sql, [fullName, phone, email, cityId, birthDate, photo, position, categoryId, comment, aboutMe, workExperienceYears, additionalInfo, id], (error, results) => {
+    connection.query(sql, [fullName, phone, email, cityId, birthDate, position, categoryId, comment, aboutMe, workExperienceYears, additionalInfo, id], (error, results) => {
         if (error) {
             console.error('Ошибка при редактировании кандидата:', error);
             res.status(500).json({message: 'Ошибка при редактировании кандидата'});
